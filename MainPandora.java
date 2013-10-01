@@ -320,7 +320,7 @@ public class MainPandora{
 
 	public MainPandora(){
 
-	/*
+	
 		mp3DIRString = System.getProperty("user.home") + "//MP3//";
 
 		File mp3DIR = new File(mp3DIRString);
@@ -329,7 +329,7 @@ public class MainPandora{
 			mp3DIR.mkdir();
 		}
 		
-	*/
+	
 	
 		Scanner in = new Scanner(System.in);
 		System.out.print("Email: ");
