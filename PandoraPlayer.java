@@ -22,8 +22,8 @@ public class PandoraPlayer{
 	InputStream is;
 	String fileName;
 	
-	private final int PORT = 12346;
-	private final String GROUP = "225.0.50.0";
+	// private final int PORT = 12346;
+	// private final String GROUP = "225.0.50.0";
 
 	ArrayList<JsonObject> songPlaylist = new ArrayList<JsonObject>();
 	ArrayList<byte[]> songCache = new ArrayList<byte[]>();
