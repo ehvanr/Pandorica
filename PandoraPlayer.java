@@ -9,7 +9,6 @@
 
 import javazoom.jl.player.Player;
 import javazoom.jl.decoder.*;
-import com.google.gson.*;
 import java.util.ArrayList;
 import java.io.*;
 import java.nio.*;
@@ -25,7 +24,7 @@ public class PandoraPlayer{
 	// private final int PORT = 12346;
 	// private final String GROUP = "225.0.50.0";
 
-	ArrayList<JsonObject> songPlaylist = new ArrayList<JsonObject>();
+	ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
 	ArrayList<byte[]> songCache = new ArrayList<byte[]>();
 	private final Object playerLock = new Object();
 	
@@ -34,17 +33,17 @@ public class PandoraPlayer{
 	int seconds;
 	int minutes;
 	
-	public PandoraPlayer(JsonObject _playObject){
+	public PandoraPlayer(PandoraSong _playObject){
 		songPlaylist.add(_playObject);
 		mp3DIRString = System.getProperty("user.home") + "//MP3//";
 	}
 	
-	public PandoraPlayer(ArrayList<JsonObject> _songPlaylist){
+	public PandoraPlayer(ArrayList<PandoraSong> _songPlaylist){
 		songPlaylist = _songPlaylist;
 		mp3DIRString = System.getProperty("user.home") + "//MP3//";
 	}
 	
-	public void addSong(JsonObject _playObject){
+	public void addSong(PandoraSong _playObject){
 		songPlaylist.add(_playObject);
 	}
 	
@@ -60,9 +59,9 @@ public class PandoraPlayer{
 			throw new NoSongInQueueException("No songs in queue");
 		}else{
 		
-			for(JsonObject currentSong : songPlaylist){
+			for(PandoraSong currentSong : songPlaylist){
 			
-				String streamURL = currentSong.get("additionalAudioUrl").getAsString();
+				String streamURL = currentSong.getAudioUrl();
 
 				// Play file
 				try{
@@ -94,9 +93,9 @@ public class PandoraPlayer{
 						byte[] currentFile = new byte[size];
 						songCache.add(currentFile);
 						
-						fileName = "Playing: " + currentSong.get("artistName").getAsString() + " - " + currentSong.get("songName").getAsString();
+						fileName = "Playing: " + currentSong.getArtistName() + " - " + currentSong.getSongName();
 						
-						writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.get("artistName").getAsString() + " - " + currentSong.get("songName").getAsString() + ".mp3"));
+						writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.getArtistName() + " - " + currentSong.getSongName() + ".mp3"));
 
 						// NOTE: PlayThread commented out, we're passing play functionality to clients via MulticastSocket (toServer thread)
 						
