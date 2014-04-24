@@ -30,7 +30,8 @@ import java.io.*;
 
 public class MainPandora{
 
-	static String BASE_URL = "https://tuner.pandora.com/services/json/?method=";
+	static String BASE_HTTPS_URL = "https://tuner.pandora.com/services/json/?method=";
+	static String BASE_HTTP_URL = "http://tuner.pandora.com/services/json/?method=";
 	private String partnerAuthToken;
 	private String urlPAT;
 	private long clientStartTime;
@@ -46,17 +47,27 @@ public class MainPandora{
 	Gson gson = new Gson();
 
 	/**
-	 * @param JsonObject toSend
-	 * @param String actionParam
-	 * @return JsonObject receivedObj
+	 * This function sends an object with the appropriate actionParam to the
+	 * Pandora API.  It then returns a recieved JSONObject.
+	 *
+	 * @param toSend 		The object to send
+	 * @param actionParam	The actionParameter part of the Pandora API
+	 * @return receivedObj	The returned JSON object
 	 **/
-	public static JsonObject sendObject(String toSend, String actionParam){
+	public static JsonObject sendObject(String toSend, String actionParam, boolean HTTPS){
 
 		String inputLine = null;
 
 		try{
-
-			URL url = new URL(BASE_URL + actionParam);
+			
+			URL url = null;
+			
+			if(HTTPS){
+				url = new URL(BASE_HTTPS_URL + actionParam);
+			}else{
+				url = new URL(BASE_HTTP_URL + actionParam);
+			}
+			
 			HttpURLConnection hc = (HttpURLConnection) url.openConnection();
 
 			hc.setRequestMethod("POST");
@@ -90,46 +101,11 @@ public class MainPandora{
 		return receivedObj;
 	}
 
-	public void partnerLogin(){
-
-		// Gets current system time for sync (difference between this and syncTime)
-		clientStartTime = System.currentTimeMillis() / 1000L;
-		
-		JsonObject partnerLogin = new JsonObject();
-		partnerLogin.addProperty("username", "android");
-		partnerLogin.addProperty("password", "AC7IBG09A3DTSYM4R41UJWL07VLN8JI7");
-		partnerLogin.addProperty("deviceModel", "android-generic");
-		partnerLogin.addProperty("version", "5");
-
-		JsonObject receivedJSON = new JsonObject();
-		receivedJSON = sendObject(partnerLogin.toString(), "auth.partnerLogin");
-
-		// Checks if our "stat" is ok
-		if((receivedJSON.get("stat")).getAsString().equals("ok")){
-		
-			JsonObject result = (JsonObject)receivedJSON.getAsJsonObject("result");
-
-			// Gets values as JsonElement, converts elements to string and integer
-			String syncTimeEncoded =(result.get("syncTime")).getAsString();
-			partnerAuthToken = (result.get("partnerAuthToken")).getAsString();
-			partnerID = Integer.parseInt((result.get("partnerId")).getAsString());
-
-			try{
-				urlPAT = URLEncoder.encode(partnerAuthToken, "ISO-8859-1");
-			}catch(UnsupportedEncodingException uee){}
-
-			syncTime = Integer.parseInt(decrypt(syncTimeEncoded));
-			
-		}else{
-			System.out.println("Error with partnerLogin");
-		}
-	}
-
 	/**
-	 * Decrypts String
+	 * Takes in an encrypted string and outputs the decrypted string.
 	 *
-	 * @param String encrypted
-	 * @return String decrypted
+	 * @param encrypted		The encrypted string
+	 * @return decrypted	The decrypted string
 	 **/
 	private String decrypt(String encrypted){
 
@@ -153,10 +129,10 @@ public class MainPandora{
 	}
 
 	/**
-	 * Encrypt String
+	 * Takes in a decrypted string and outputs the encrypted string.
 	 *
-	 * @param String decrypted
-	 * @return String encrypted
+	 * @param decrypted		The decrypted string
+	 * @return encrypted	The encrypted string
 	 **/
 	private String encrypt(String decrypted){
 
@@ -176,74 +152,13 @@ public class MainPandora{
 	}
 
 	/**
-	 * @param String username
-	 * @param String password
+	 * This will receive and return all songs in a station that the  
+	 * user has saved in their Pandora account.
+	 * 
+	 * @param stationToken		The station that we want to get a playlist for.
+	 * @return songListArray	The first three songs in the specified station.
 	 **/
-	private void userLogin(String username, String password){
-
-		// Commented out JSON elements are not needed for implementation... yet
-	
-		String loginURLMethod = String.format("auth.userLogin&auth_token=%s&partner_id=%d", urlPAT, partnerID);
-
-		JsonObject userLoginJSON = new JsonObject();
-		userLoginJSON.addProperty("loginType", "user");
-		userLoginJSON.addProperty("username", username);
-		userLoginJSON.addProperty("password", password);
-		userLoginJSON.addProperty("partnerAuthToken", partnerAuthToken);
-		//userLoginJSON.addProperty("includePandoraOneInfo", true);
-		//userLoginJSON.addProperty("includeAdAttributes", true);
-		//userLoginJSON.addProperty("includeSubscriptionExpiration", true);
-		//userLoginJSON.addProperty("includeStationArtUrl", true);
-		userLoginJSON.addProperty("returnStationList", true);
-		//userLoginJSON.addProperty("returnGenreStations", true);
-		userLoginJSON.addProperty("syncTime", getSyncTime());
-
-		JsonObject incomingObj = sendObject(encrypt(userLoginJSON.toString()), loginURLMethod);
-
-		// Determines if we received an "ok" response from the server
-		if(incomingObj.get("stat").getAsString().equals("ok")){
-			
-			// Sets userAuthToken
-			userAuthToken = incomingObj.getAsJsonObject("result").get("userAuthToken").getAsString();
-
-			// URLEncodes userAuthToken (we're parsing a URL with this token)
-			try{
-				urlUAT = URLEncoder.encode(userAuthToken, "ISO-8859-1");
-			}catch(UnsupportedEncodingException uee){}
-			
-			// Gets userId from login
-			userId = incomingObj.getAsJsonObject("result").get("userId").getAsString();
-			
-			// Gets station list as a JsonElement
-			JsonElement stationList = incomingObj.getAsJsonObject("result").getAsJsonObject("stationListResult").get("stations");
-			
-			// Deserialization - Grabs array of JSON (JsonElement stationList object) and inputs each into a JsonArray
-			JsonArray stationListParsed = gson.fromJson(stationList, JsonArray.class);
-			
-			// Creates ArratList of each pandoraStation
-			ArrayList<JsonObject> pandoraStations = new ArrayList<JsonObject>();
-
-			// Takes each element from JsonArray, get it as a JsonObject, and inputs it into pandoraStation JsonObject ArrayList
-			for(JsonElement element : stationListParsed){
-				JsonObject tempObj = element.getAsJsonObject();
-				pandoraStations.add(tempObj);
-			}
-			
-			// Calls listStations method
-			listStations(pandoraStations);
-			
-		}else{
-			
-			// We did not get an "ok" from the server, figure out why and print appropriate error messages
-			if(incomingObj.get("code").getAsString().equals("1002")){
-				System.out.println("Incorrect Login Information");
-			}else{
-				System.out.println("Unknown Error Code: " + incomingObj.get("code").getAsString());
-			}
-		}
-	}
-
-	public void getPlaylist(String stationToken){
+	public ArrayList<PandoraSong> getPlaylist(String stationToken){
 		
 		// Sets JSON playlist URL
 		String playlistURLMethod = String.format("station.getPlaylist&auth_token=%s&partner_id=%d&user_id=%s", urlUAT, partnerID, userId);
@@ -254,7 +169,7 @@ public class MainPandora{
 		getPlaylistJSON.addProperty("additionalAudioUrl", "HTTP_128_MP3");
 		getPlaylistJSON.addProperty("syncTime", getSyncTime());
 
-		JsonObject incomingObj = sendObject(encrypt(getPlaylistJSON.toString()), playlistURLMethod);
+		JsonObject incomingObj = sendObject(encrypt(getPlaylistJSON.toString()), playlistURLMethod, true);
 
 		// Grabs "items" element (Each are song attributes, we still need to parse song URL)
 		JsonElement tempStreams = incomingObj.getAsJsonObject("result").get("items");
@@ -262,8 +177,7 @@ public class MainPandora{
 		// Deserialization of tempStreams JsonElement - inputs them into JsonArray
 		JsonArray songListParsed = gson.fromJson(tempStreams, JsonArray.class);
 
-		// Creates JsonObject ArrayList
-		ArrayList<JsonObject> songListArray = new ArrayList<JsonObject>();
+		ArrayList<PandoraSong> songListArray = new ArrayList<PandoraSong>();
 
 		// Takes each element from JsonArray, get it as a JsonObject, and inputs it into songListArray JsonObject ArrayList
 		for(JsonElement element : songListParsed){
@@ -272,21 +186,26 @@ public class MainPandora{
 
 			// Makes sure it's a song (contains "trackToken" field)
 			if(tempObj.has("trackToken")){
-				songListArray.add(tempObj);
+				PandoraSong tempSong = new PandoraSong();
+				
+				tempSong.setAudioUrl(tempObj.get("additionalAudioUrl").getAsString());
+				tempSong.setAlbumArtUrl(tempObj.get("albumArtUrl").getAsString());
+				tempSong.setArtistName(tempObj.get("artistName").getAsString());
+				tempSong.setAlbumName(tempObj.get("albumName").getAsString());
+				tempSong.setSongName(tempObj.get("songName").getAsString());
+				
+				songListArray.add(tempSong);
 			}
 		}
 		
-		// Sends songListArray JsonObject ArrayList object to PandoraPlayer
-		PandoraPlayer playTrack = new PandoraPlayer(songListArray);
-		
-		// Plays the player, it will cycle through until it completes the playlist
-		try{
-			playTrack.play();
-		}catch(NoSongInQueueException nsiqe){
-			nsiqe.printStackTrace();
-		}
+		return songListArray;
 	}
 
+	/**
+	 * This function prints the stations to the console. 
+	 *
+	 * @param pandoraStations	The stations to print
+	 **/
 	public void listStations(ArrayList<JsonObject> pandoraStations){
 	
 		System.out.println("\nStation List: \n");
@@ -312,33 +231,175 @@ public class MainPandora{
 	/**
 	 * This calculates syncTime (Required for all JSON requests to the server)
 	 *
-	 * @return current syncTime
+	 * @return currentSyncTime	The calculated current SyncTime vs the saved initial SyncTime
 	 **/
 	public long getSyncTime(){
-		return syncTime + ((System.currentTimeMillis() / 1000) - clientStartTime);
+		long currentSyncTime = syncTime + ((System.currentTimeMillis() / 1000) - clientStartTime);
+		return currentSyncTime;
 	}
-
-	public MainPandora(){
 	
-		mp3DIRString = System.getProperty("user.home") + "//MP3//";
-
-		File mp3DIR = new File(mp3DIRString);
-
-		if (!mp3DIR.exists()){
-			mp3DIR.mkdir();
-		}
-	
-		Scanner in = new Scanner(System.in);
-		System.out.print("Email: ");
-		String username = in.nextLine();
-		Console console = System.console();
-		char passwordArray[] = console.readPassword("Password: ");
+	public ArrayList<ArrayList<String>> getStationList(){
 		
-		partnerLogin();
-		userLogin(username, new String(passwordArray));
-	}
+		// Sets JSON playlist URL
+		String stationListURLMethod = String.format("user.getStationList&auth_token=%s&partner_id=%d&user_id=%s", urlUAT, partnerID, userId);
 
-	public static void main(String args[]){
-			new MainPandora();
+		JsonObject getStationListJSON = new JsonObject();
+		getStationListJSON.addProperty("userAuthToken", userAuthToken);
+		getStationListJSON.addProperty("syncTime", getSyncTime());
+
+		// Will not worth with HTTPS, set to false
+		JsonObject incomingObj = sendObject(encrypt(getStationListJSON.toString()), stationListURLMethod, false);
+		
+		if(incomingObj.get("stat").getAsString().equals("ok")){
+			JsonArray tempStations = incomingObj.getAsJsonObject("result").getAsJsonArray("stations");
+			
+			// Creates ArratList of each pandoraStation
+			ArrayList<ArrayList<String>> pandoraStations = new ArrayList<ArrayList<String>>();
+
+			// Takes each element from JsonArray, get it as a JsonObject, and inputs it into pandoraStation JsonObject ArrayList
+			for(JsonElement element : tempStations){
+				ArrayList<String> tempObj = new ArrayList<String>();
+				
+				tempObj.add(element.getAsJsonObject().get("stationName").getAsString());
+				tempObj.add(element.getAsJsonObject().get("stationToken").getAsString());
+				pandoraStations.add(tempObj);
+			}
+			
+			return pandoraStations;
+		}else{
+			// Didn't get expected response. Thow error? 
+			return null;
+		}
+	}
+	
+	/**
+	 * This function performs the userLogin, immediately after the partnerLogin.
+	 *
+	 * Sets global vars userAuthToken, urlUAT, userId
+	 *
+	 * @param username			The users email
+	 * @param password			The users password
+	 * @return pandoraStation	An ArrayList of the users Pandora Stations (Or null if error)
+	 **/
+	private boolean userLogin(String username, String password){
+
+		// Commented out JSON elements are not needed for implementation... yet
+	
+		String loginURLMethod = String.format("auth.userLogin&auth_token=%s&partner_id=%d", urlPAT, partnerID);
+
+		JsonObject userLoginJSON = new JsonObject();
+		userLoginJSON.addProperty("loginType", "user");
+		userLoginJSON.addProperty("username", username);
+		userLoginJSON.addProperty("password", password);
+		userLoginJSON.addProperty("partnerAuthToken", partnerAuthToken);
+		//userLoginJSON.addProperty("includePandoraOneInfo", true);
+		//userLoginJSON.addProperty("includeAdAttributes", true);
+		//userLoginJSON.addProperty("includeSubscriptionExpiration", true);
+		//userLoginJSON.addProperty("includeStationArtUrl", true);
+		userLoginJSON.addProperty("returnStationList", false);
+		//userLoginJSON.addProperty("returnGenreStations", true);
+		userLoginJSON.addProperty("syncTime", getSyncTime());
+
+		JsonObject incomingObj = sendObject(encrypt(userLoginJSON.toString()), loginURLMethod, true);
+
+		// Determines if we received an "ok" response from the server
+		if(incomingObj.get("stat").getAsString().equals("ok")){
+			
+			// Sets userAuthToken
+			userAuthToken = incomingObj.getAsJsonObject("result").get("userAuthToken").getAsString();
+
+			// URLEncodes userAuthToken (we're parsing a URL with this token)
+			try{
+				urlUAT = URLEncoder.encode(userAuthToken, "ISO-8859-1");
+			}catch(UnsupportedEncodingException uee){}
+			
+			// Gets userId from login
+			userId = incomingObj.getAsJsonObject("result").get("userId").getAsString();
+			
+			// Return successful
+			return true;
+		}else{
+			// Throw bare-bone exception with incomingObj.get("code").getAsString() as details
+			// Have the programmer deal with restarting the login
+			System.out.println("User Login Error");
+			return false;
+		}
+	}
+	
+	/**
+	 * This is the partnerLogin portion of the authentication.  It must be 
+	 * performed prior to user authentication.
+	 *
+	 * Sets global vars clientStartTime, partnerID, and syncTime
+	 **/ 
+	public boolean partnerLogin(){
+
+		// Gets current system time for sync (difference between this and syncTime)
+		clientStartTime = System.currentTimeMillis() / 1000L;
+		
+		JsonObject partnerLogin = new JsonObject();
+		partnerLogin.addProperty("username", "android");
+		partnerLogin.addProperty("password", "AC7IBG09A3DTSYM4R41UJWL07VLN8JI7");
+		partnerLogin.addProperty("deviceModel", "android-generic");
+		partnerLogin.addProperty("version", "5");
+
+		JsonObject receivedJSON = new JsonObject();
+		receivedJSON = sendObject(partnerLogin.toString(), "auth.partnerLogin", true);
+
+		// Checks if our "stat" is ok
+		if((receivedJSON.get("stat")).getAsString().equals("ok")){
+		
+			JsonObject result = (JsonObject)receivedJSON.getAsJsonObject("result");
+
+			// Gets values as JsonElement, converts elements to string and integer
+			String syncTimeEncoded = (result.get("syncTime")).getAsString();
+			partnerAuthToken = (result.get("partnerAuthToken")).getAsString();
+			partnerID = Integer.parseInt((result.get("partnerId")).getAsString());
+
+			try{
+				urlPAT = URLEncoder.encode(partnerAuthToken, "ISO-8859-1");
+			}catch(UnsupportedEncodingException uee){}
+
+			syncTime = Integer.parseInt(decrypt(syncTimeEncoded));
+
+			return true;
+		}else{
+			System.out.println("Error with partnerLogin: " + receivedJSON.get("stat").getAsString());
+			// Throw some kind of error here
+			return false;
+		}
+	}
+	
+	/**
+	 * This function performs the partnerLogin as well as the userLogin 
+	 * part of the Pandora API
+	 *
+	 * @param username The email of the user
+	 * @param password The password of the user
+	 **/
+	public boolean pandoraLogin(String username, String password){
+		if(partnerLogin() && userLogin(username, password)){
+			return true;
+		}else{
+			// Shouldn't need to throw any error here because the error should have already been thrown.
+			return false;
+		}
+	}
+	
+	// This should be set in a setting.  
+	public void saveAsMP3(boolean value){
+		if(value){
+			mp3DIRString = System.getProperty("user.home") + "//MP3//";
+			File mp3DIR = new File(mp3DIRString);
+
+			if (!mp3DIR.exists()){
+				mp3DIR.mkdir();
+			}
+		}
+	}
+	
+	// Psuedo save as mp3 settings, access from file XML or some other file. (Whatever is convenient)
+	public MainPandora(){
+		saveAsMP3(true);
 	}
 }
