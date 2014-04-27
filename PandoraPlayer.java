@@ -17,16 +17,13 @@ import java.text.SimpleDateFormat;
 
 public class PandoraPlayer{
 	
+	ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
+	private final Object playerLock = new Object();
+	
 	OutputStream writeStream;
 	InputStream is;
 	String fileName;
-	
-	// private final int PORT = 12346;
-	// private final String GROUP = "225.0.50.0";
-
-	ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
-	ArrayList<byte[]> songCache = new ArrayList<byte[]>();
-	private final Object playerLock = new Object();
+	byte[] currentFile;
 	
 	String mp3DIRString;
 	int time;
@@ -66,9 +63,9 @@ public class PandoraPlayer{
 				// Play file
 				try{
 					URL url = new URL(streamURL);
-					URLConnection urlConnect = url.openConnection();
+					HttpURLConnection urlConnect = (HttpURLConnection)url.openConnection();
 					int size = urlConnect.getContentLength();
-					urlConnect.getInputStream().close();
+					urlConnect.disconnect();
 
 					is = url.openStream();
 					
@@ -90,8 +87,7 @@ public class PandoraPlayer{
 						System.out.print("Skipping song...");
 					}else{
 
-						byte[] currentFile = new byte[size];
-						songCache.add(currentFile);
+						currentFile = new byte[size];
 						
 						fileName = "Playing: " + currentSong.getArtistName() + " - " + currentSong.getSongName();
 						
@@ -112,7 +108,8 @@ public class PandoraPlayer{
 						toServer.join();
 
 						writeStream.close();
-						songCache.remove(currentFile);
+						currentFile = null;
+						System.gc();
 					}
 					
 					stream.close();
@@ -148,29 +145,10 @@ public class PandoraPlayer{
 						// Loops while there is still input stream data
 						while((length = is.read(bytes)) != -1){
 							
-							// ------ LOCAL STORAGE ------- \\
-							
-							// Appends bytes to songCache index 0 byte array
-							System.arraycopy(bytes, 0,  songCache.get(0), read, length);
+							// Appends bytes to currentFile index 0 byte array
+							System.arraycopy(bytes, 0,  currentFile, read, length);
 							writeStream.write(bytes, 0, length);
 							read += length;
-							
-							// ----- MulticastSocket Preperation and Output ------ \\
-							
-							// Creates finalAr (The data portion of the packet getting ready to be sent out)
-							// byte[] finalAr = new byte[length + 4];
-							// System.arraycopy(bytes, 0, finalAr, 0, length);
-							
-							// Creates byteCount array (converts counter to byteArray)
-							// byte byteCount[] = ByteBuffer.allocate(4).putInt(counter).array();
-							// System.arraycopy(byteCount, 0, finalAr, length, 4);
-							
-							// Creates DatagramPacket reads to be sent
-							// toClientBuffer = new DatagramPacket(finalAr, finalAr.length, InetAddress.getByName(GROUP), PORT);
-							
-							// Sends packet and adds to counter (next packet!)
-							// mcs.send(toClientBuffer);
-							// counter++;
 							
 							// Notifies the play thread that we're ready to go (This is only needed to have a timer and play locally if enabled)
 							if(read > 49152){
@@ -178,8 +156,9 @@ public class PandoraPlayer{
 									playerLock.notifyAll();
 								}
 							}
-							
 						}
+						
+						bytes = null;
 						
 						writeStream.flush();
 						writeStream.close();
@@ -195,7 +174,7 @@ public class PandoraPlayer{
 			
 			try{
 			
-				ByteArrayInputStream readFromArray = new ByteArrayInputStream(songCache.get(0));
+				ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
 			
 				synchronized(playerLock){
 					playerLock.wait();

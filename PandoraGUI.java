@@ -5,6 +5,7 @@ import java.io.*;
 import java.util.Scanner;
 
 public class PandoraGUI{
+	
 	public PandoraGUI(){
 		MainPandora pandoraBackEnd = new MainPandora();
 		
@@ -25,21 +26,9 @@ public class PandoraGUI{
 		Scanner in = new Scanner(System.in);
 		System.out.print("\nPlease enter a station: ");
 		int selection = in.nextInt() - 1;
+		String stationId = tempStationList.get(selection).get(1);
 		
-		while(true){
-			// Get Playlist of selected station
-			ArrayList<PandoraSong> tempPlaylist = pandoraBackEnd.getPlaylist(tempStationList.get(selection).get(1));
-
-			// Sends songListArray JsonObject ArrayList object to PandoraPlayer
-			PandoraPlayer playTrack = new PandoraPlayer(tempPlaylist);
-			
-			// Plays the player, it will cycle through until it completes the playlist
-			try{
-				playTrack.play();
-			}catch(NoSongInQueueException nsiqe){
-				nsiqe.printStackTrace();
-			}
-		}
+		pandoraBackEnd.play(stationId);
 	}
 	
 	// [TEMPORARY] This prompts for the password, implement GUI in this.

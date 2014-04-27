@@ -45,6 +45,8 @@ public class MainPandora{
 	private String mp3DIRString;
 	
 	Gson gson = new Gson();
+	
+	ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
 
 	/**
 	 * This function sends an object with the appropriate actionParam to the
@@ -401,5 +403,40 @@ public class MainPandora{
 	// Psuedo save as mp3 settings, access from file XML or some other file. (Whatever is convenient)
 	public MainPandora(){
 		saveAsMP3(true);
+	}
+	
+	
+	// Implement hook from stop function that stops this infinite loop (So we can start another with a different stationId)
+	public void play(String stationId){
+		
+		// Infinite play!
+		while(true){
+		
+			// If queue is less than 2
+			if(songPlaylist.size() < 2){
+				
+				// Request new songs for current stationId
+				ArrayList<PandoraSong> tempPlaylist = getPlaylist(stationId);
+				
+				// Appends those songs on the playlist queue
+				for(PandoraSong tempSong : tempPlaylist){
+					songPlaylist.add(tempSong);
+				}
+			}else{
+				// Grabs song on top
+				PandoraSong mySong = songPlaylist.get(0);
+				PandoraPlayer playTrack = new PandoraPlayer(mySong);
+				
+				// Plays song on top
+				try{
+					playTrack.play();
+				}catch(NoSongInQueueException nsiqe){
+					nsiqe.printStackTrace();
+				}
+				
+				// Removes song in queue
+				songPlaylist.remove(0);
+			}
+		}
 	}
 }
