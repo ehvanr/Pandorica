@@ -28,7 +28,17 @@ public class PandoraGUI{
 		int selection = in.nextInt() - 1;
 		String stationId = tempStationList.get(selection).get(1);
 		
-		pandoraBackEnd.play(stationId);
+		QueueManager queueMan = new QueueManager(pandoraBackEnd);
+		
+		queueMan.playStation(stationId);
+		
+		selection = in.nextInt() - 1;
+		
+		queueMan.pause();
+		
+		selection = in.nextInt() - 1;
+		
+		queueMan.resume();
 	}
 	
 	// [TEMPORARY] This prompts for the password, implement GUI in this.
