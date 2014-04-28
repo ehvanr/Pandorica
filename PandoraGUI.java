@@ -29,6 +29,7 @@ public class PandoraGUI{
 		String stationId = tempStationList.get(selection).get(1);
 		
 		QueueManager queueMan = new QueueManager(pandoraBackEnd);
+		queueMan.saveAsMP3(true);
 		
 		queueMan.playStation(stationId);
 		

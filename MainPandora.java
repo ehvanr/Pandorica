@@ -2,9 +2,7 @@
  * Evan Reichard
  * https://github.com/evreichard
  * evan@evanreichard.com
- * April 2013
- *
- * BETA 1
+ * 2013 - 2014
  **/
 
 /**
@@ -21,12 +19,6 @@ import java.util.Scanner;
 import java.util.Arrays;
 import java.net.*;
 import java.io.*;
-
-// WINDOWS:
-// javac -cp .;gson-2.2.3.jar;commons-codec-1.7.jar;jl1.0.1.jar *.java
-
-// LINUX:
-// javac -cp .:gson-2.2.3.jar:commons-codec-1.7.jar:jl1.0.1.jar *.java
 
 public class MainPandora{
 
@@ -385,21 +377,8 @@ public class MainPandora{
 			return false;
 		}
 	}
-	
-	// This should be set in a setting.  
-	public void saveAsMP3(boolean value){
-		if(value){
-			mp3DIRString = System.getProperty("user.home") + "//MP3//";
-			File mp3DIR = new File(mp3DIRString);
 
-			if (!mp3DIR.exists()){
-				mp3DIR.mkdir();
-			}
-		}
-	}
-	
-	// Psuedo save as mp3 settings, access from file XML or some other file. (Whatever is convenient)
 	public MainPandora(){
-		saveAsMP3(true);
+		
 	}
 }

@@ -44,6 +44,22 @@ public class QueueManager{
 		liveSong.stop();
 	}
 	
+	public void nextSong(){
+		
+	}
+	
+	// This should be set in a setting.  
+	public void saveAsMP3(boolean value){
+		if(value){
+			mp3DIRString = System.getProperty("user.home") + "//MP3//";
+			File mp3DIR = new File(mp3DIRString);
+
+			if (!mp3DIR.exists()){
+				mp3DIR.mkdir();
+			}
+		}
+	}
+	
 	// Thow song not in queue
 	public void playQueue() throws NoSongInQueueException{
 		
@@ -130,7 +146,7 @@ public class QueueManager{
 	
 	class ThreadedQueue extends Thread{
 		public void run(){
-			// Thread me
+			
 			while(true){
 			
 				// If queue is less than 2
@@ -215,6 +231,8 @@ public class QueueManager{
 		}
 	}
 	
+	// Do we even need this? Just have a get method that allows you to retrieve total time of currentSong
+	// Then implement counter there
 	class ProgressManager implements Runnable{
 		
 		String songLength;
