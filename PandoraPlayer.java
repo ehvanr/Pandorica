@@ -57,8 +57,6 @@ public class PandoraPlayer{
                 default:
                     break;
             }
-			
-			System.out.println(playerStatus);
         }
     }
 
