@@ -22,7 +22,7 @@ public class QueueManager{
 	int seconds;
 	int minutes;
 	
-	PlayThread MP3player;
+	SongPlayer liveSong;
 	
 	public QueueManager(MainPandora tempPandoraBackEnd){
 		pandoraBackEnd = tempPandoraBackEnd;
@@ -33,15 +33,15 @@ public class QueueManager{
 	}
 	
 	public void pause(){
-		MP3player.pauseSong();
+		liveSong.pause();
 	}
 	
 	public void resume(){
-		MP3player.resumeSong();
+		liveSong.resume();
 	}
 	
 	public void stop(){
-		MP3player.stopSong();
+		liveSong.stop();
 	}
 	
 	// Thow song not in queue
@@ -89,17 +89,21 @@ public class QueueManager{
 					writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.getArtistName() + " - " + currentSong.getSongName() + ".mp3"));
 					ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
 		
-					MP3player = new PlayThread(readFromArray);
-					ProgressThread timeCount = new ProgressThread();
-					WriteThread toServer = new WriteThread();
+					ProgressManager liveProgress = new ProgressManager();
+					liveSong = new SongPlayer(readFromArray);
+					BufferManager liveBuffer = new BufferManager(); 
+					
+					Thread progressThread = new Thread(liveProgress);
+					Thread songThread = new Thread(liveSong);
+					Thread bufferThread = new Thread(liveBuffer);
 
-					timeCount.start();
-					MP3player.start();
-					toServer.start();
+					progressThread.start();
+					songThread.start();
+					bufferThread.start();
 
-					timeCount.join();
-					MP3player.join();
-					toServer.join();
+					progressThread.join();
+					songThread.join();
+					bufferThread.join();
 
 					writeStream.close();
 					currentFile = null;
@@ -153,7 +157,7 @@ public class QueueManager{
 		}
 	}
 	
-	class WriteThread extends Thread{
+	class BufferManager implements Runnable{
 		
 		public void run() {
 		
@@ -190,12 +194,10 @@ public class QueueManager{
 		}
 	}
 	
-	class PlayThread extends Thread{
-		ByteArrayInputStream readFromArray;
-		PandoraPlayer player;
+	class SongPlayer extends PandoraPlayer implements Runnable{
 		
-		public PlayThread(ByteArrayInputStream tempReadFromArray){
-			readFromArray = tempReadFromArray;
+		public SongPlayer(InputStream inputStream) throws JavaLayerException{
+			super(inputStream);
 		}
 		
 		public void run() {
@@ -205,30 +207,15 @@ public class QueueManager{
 					threadLock.wait();
 				}
 				
-				player = new PandoraPlayer(readFromArray);
-				player.play();
-				
-				readFromArray.close();
+				play();
 				
 			}catch(Exception e){
 				e.printStackTrace();
 			}
 		}
-		
-		public void pauseSong(){
-			player.pause();
-		}
-		
-		public void resumeSong(){
-			player.resume();
-		}
-		
-		public void stopSong(){
-			player.stop();
-		}
 	}
 	
-	class ProgressThread extends Thread{
+	class ProgressManager implements Runnable{
 		
 		String songLength;
 		
