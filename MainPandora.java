@@ -305,7 +305,11 @@ public class MainPandora{
 
 		JsonObject incomingObj = sendObject(encrypt(userLoginJSON.toString()), loginURLMethod, true);
 
-		String errorCode = incomingObj.get("code").getAsString();
+		String errorCode = null;
+		
+		try{
+			errorCode = incomingObj.get("code").getAsString();
+		}catch(Exception e){}
 		
 		// Determines if we received an "ok" response from the server
 		if(incomingObj.get("stat").getAsString().equals("ok")){
