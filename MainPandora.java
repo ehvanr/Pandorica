@@ -162,35 +162,43 @@ public class MainPandora{
 		getPlaylistJSON.addProperty("syncTime", getSyncTime());
 
 		JsonObject incomingObj = sendObject(encrypt(getPlaylistJSON.toString()), playlistURLMethod, true);
-
-		// Grabs "items" element (Each are song attributes, we still need to parse song URL)
-		JsonElement tempStreams = incomingObj.getAsJsonObject("result").get("items");
-
-		// Deserialization of tempStreams JsonElement - inputs them into JsonArray
-		JsonArray songListParsed = gson.fromJson(tempStreams, JsonArray.class);
-
-		ArrayList<PandoraSong> songListArray = new ArrayList<PandoraSong>();
-
-		// Takes each element from JsonArray, get it as a JsonObject, and inputs it into songListArray JsonObject ArrayList
-		for(JsonElement element : songListParsed){
-
-			JsonObject tempObj = element.getAsJsonObject();
-
-			// Makes sure it's a song (contains "trackToken" field)
-			if(tempObj.has("trackToken")){
-				PandoraSong tempSong = new PandoraSong();
-				
-				tempSong.setAudioUrl(tempObj.get("additionalAudioUrl").getAsString());
-				tempSong.setAlbumArtUrl(tempObj.get("albumArtUrl").getAsString());
-				tempSong.setArtistName(tempObj.get("artistName").getAsString());
-				tempSong.setAlbumName(tempObj.get("albumName").getAsString());
-				tempSong.setSongName(tempObj.get("songName").getAsString());
-				
-				songListArray.add(tempSong);
-			}
-		}
 		
-		return songListArray;
+		if(incomingObj.get("stat").getAsString().equals("ok")){
+			
+			// Grabs "items" element (Each are song attributes, we still need to parse song URL)
+			JsonElement tempStreams = incomingObj.getAsJsonObject("result").get("items");
+
+			// Deserialization of tempStreams JsonElement - inputs them into JsonArray
+			JsonArray songListParsed = gson.fromJson(tempStreams, JsonArray.class);
+
+			ArrayList<PandoraSong> songListArray = new ArrayList<PandoraSong>();
+
+			// Takes each element from JsonArray, get it as a JsonObject, and inputs it into songListArray JsonObject ArrayList
+			for(JsonElement element : songListParsed){
+
+				JsonObject tempObj = element.getAsJsonObject();
+
+				// Makes sure it's a song (contains "trackToken" field)
+				if(tempObj.has("trackToken")){
+					PandoraSong tempSong = new PandoraSong();
+					
+					tempSong.setAudioUrl(tempObj.get("additionalAudioUrl").getAsString());
+					tempSong.setAlbumArtUrl(tempObj.get("albumArtUrl").getAsString());
+					tempSong.setArtistName(tempObj.get("artistName").getAsString());
+					tempSong.setAlbumName(tempObj.get("albumName").getAsString());
+					tempSong.setSongName(tempObj.get("songName").getAsString());
+					
+					songListArray.add(tempSong);
+				}
+			}
+			
+			return songListArray;
+		}else{
+			String errorCode = incomingObj.get("code").getAsString();
+			System.out.println("getPlaylist API call crashed with error: " + errorCode);
+			System.exit(0);
+			return null;
+		}
 	}
 
 	/**
@@ -259,7 +267,10 @@ public class MainPandora{
 			
 			return pandoraStations;
 		}else{
-			// Didn't get expected response. Thow error? 
+			// Didn't get expected response. Thow error?
+			String errorCode = incomingObj.get("code").getAsString();
+			System.out.println("getStationList API call crashed with error: " + errorCode);
+			System.exit(0);
 			return null;
 		}
 	}
@@ -294,6 +305,8 @@ public class MainPandora{
 
 		JsonObject incomingObj = sendObject(encrypt(userLoginJSON.toString()), loginURLMethod, true);
 
+		String errorCode = incomingObj.get("code").getAsString();
+		
 		// Determines if we received an "ok" response from the server
 		if(incomingObj.get("stat").getAsString().equals("ok")){
 			
@@ -310,10 +323,14 @@ public class MainPandora{
 			
 			// Return successful
 			return true;
-		}else{
+		}else if(errorCode.equals("1002")){
 			// Throw bare-bone exception with incomingObj.get("code").getAsString() as details
 			// Have the programmer deal with restarting the login
 			System.out.println("User Login Error");
+			return false;
+		}else{
+			System.out.println("userLogin API call crashed with error: " + errorCode);
+			System.exit(0);
 			return false;
 		}
 	}
@@ -335,13 +352,13 @@ public class MainPandora{
 		partnerLogin.addProperty("deviceModel", "android-generic");
 		partnerLogin.addProperty("version", "5");
 
-		JsonObject receivedJSON = new JsonObject();
-		receivedJSON = sendObject(partnerLogin.toString(), "auth.partnerLogin", true);
+		JsonObject incomingObj = new JsonObject();
+		incomingObj = sendObject(partnerLogin.toString(), "auth.partnerLogin", true);
 
 		// Checks if our "stat" is ok
-		if((receivedJSON.get("stat")).getAsString().equals("ok")){
+		if((incomingObj.get("stat")).getAsString().equals("ok")){
 		
-			JsonObject result = (JsonObject)receivedJSON.getAsJsonObject("result");
+			JsonObject result = (JsonObject)incomingObj.getAsJsonObject("result");
 
 			// Gets values as JsonElement, converts elements to string and integer
 			String syncTimeEncoded = (result.get("syncTime")).getAsString();
@@ -356,8 +373,9 @@ public class MainPandora{
 
 			return true;
 		}else{
-			System.out.println("Error with partnerLogin: " + receivedJSON.get("stat").getAsString());
-			// Throw some kind of error here
+			String errorCode = incomingObj.get("code").getAsString();
+			System.out.println("partnerLogin API call crashed with error: " + errorCode);
+			System.exit(0);
 			return false;
 		}
 	}
