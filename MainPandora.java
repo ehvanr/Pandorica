@@ -34,7 +34,6 @@ public class MainPandora{
 	private String stationId;
 	private String userAuthToken;
 	private String urlUAT;
-	private String mp3DIRString;
 	
 	Gson gson = new Gson();
 	

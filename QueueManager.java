@@ -13,22 +13,52 @@ import javazoom.jl.decoder.*;
 import java.text.SimpleDateFormat;
 
 public class QueueManager{
+	
+	// To access the backend, this object must be passed through in the constructor
 	MainPandora pandoraBackEnd;
-	PandoraPlayer playTrack;
+	
+	// The current stationId (So we can process calls to the backend) 
+	// Might want to set this in the constructor as well?
 	String stationId;
+	
+	// The object to notify threads
 	private final Object threadLock = new Object();
+	
+	// The current songPlaylist
 	ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
 	
+	// The writeStream to write to file (This shouldn't be global, set this in the buffer thread in the if save as mp3 statement)
 	OutputStream writeStream;
+	
+	// InputStream for the current song, accessable via the threads
 	InputStream is;
+	
+	
 	String fileName;
+	
+	// The actual song itself, accesses by the buffer and play thread
 	byte[] currentFile;
 	
+	// Default saveToMP3 (create seperate class to handle prefs)
+	boolean saveToMP3 = false;
+	
+	// The dir to store the MP3's (again, create seperate class to handle prefs)
 	String mp3DIRString;
+	
+	// The time (in seconds), seconds and minutes of the current song (Do we need this?)
 	int time;
 	int seconds;
 	int minutes;
 	
+	// Est FileSize (Pass this to thread instead of global)
+	double estFileSizeKB;
+	
+	// The estPercentDone calc and updated by the buffer thread.  As well as Song Length and Song position.
+	int estPercentDone = 0;
+	String currentSongLength;
+	String currentSongPosition;
+	
+	// The playing thread (Global so we can use accessors to modify play status)
 	SongPlayer liveSong;
 	
 	public QueueManager(MainPandora tempPandoraBackEnd){
@@ -55,8 +85,22 @@ public class QueueManager{
 		
 	}
 	
+	public int getBufferPercentage(){
+		return estPercentDone;
+	}
+	
+	public String getCurrentSongLength(){
+		return currentSongLength;
+	}
+	
+	public String getCurrentSongPosition(){
+		return currentSongPosition;
+	}
+	
 	// This should be set in a setting.  
 	public void saveAsMP3(boolean value){
+		saveToMP3 = value;
+		
 		if(value){
 			mp3DIRString = System.getProperty("user.home") + "//MP3//";
 			File mp3DIR = new File(mp3DIRString);
@@ -95,6 +139,9 @@ public class QueueManager{
 				seconds = time % 60;
 				minutes = (time - seconds) / 60;
 				
+				
+				estFileSizeKB = (double)((time * 128) / 8);
+				
 				String duration = minutes + ":" + seconds + ")";
 				
 				// 332362 (If we're using bytes instead of time - probably better to do)
@@ -112,22 +159,22 @@ public class QueueManager{
 					writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.getArtistName() + " - " + currentSong.getSongName() + ".mp3"));
 					ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
 		
+					BufferManager liveBuffer = new BufferManager(); 
 					ProgressManager liveProgress = new ProgressManager();
 					liveSong = new SongPlayer(readFromArray);
-					BufferManager liveBuffer = new BufferManager(); 
 					
+					Thread bufferThread = new Thread(liveBuffer);
 					Thread progressThread = new Thread(liveProgress);
 					Thread songThread = new Thread(liveSong);
-					Thread bufferThread = new Thread(liveBuffer);
-
+					
 					progressThread.start();
 					songThread.start();
 					bufferThread.start();
 
+					bufferThread.join();
 					progressThread.join();
 					songThread.join();
-					bufferThread.join();
-
+					
 					writeStream.close();
 					currentFile = null;
 					System.gc();
@@ -190,13 +237,19 @@ public class QueueManager{
 						int read = 0;
 						byte[] bytes = new byte[512];
 						
+						
+						
 						// Loops while there is still input stream data
 						while((length = is.read(bytes)) != -1){
 							
 							// Appends bytes to currentFile index 0 byte array
 							System.arraycopy(bytes, 0,  currentFile, read, length);
-							writeStream.write(bytes, 0, length);
+							//writeStream.write(bytes, 0, length);
 							read += length;
+							
+							if(estPercentDone > 100){
+								estPercentDone = 100;
+							}
 							
 							// Notifies the play thread that we're ready to go (This is only needed to have a timer and play locally if enabled)
 							if(read > 49152){
@@ -204,6 +257,11 @@ public class QueueManager{
 									threadLock.notifyAll();
 								}
 							}
+						}
+						
+						// If saveToMP3, write out to file.  Otherwise, skip.
+						if(saveToMP3){
+							writeStream.write(currentFile);
 						}
 						
 						bytes = null;
@@ -242,22 +300,21 @@ public class QueueManager{
 	// Then implement counter there
 	class ProgressManager implements Runnable{
 		
-		String songLength;
-		
 		public void run(){
 			
 			try{
 			
 				SimpleDateFormat formatTime = new SimpleDateFormat("mm:ss");
-				songLength = formatTime.format(time * 1000);
+				currentSongLength = formatTime.format(time * 1000);
 				
 				synchronized(threadLock){
 					threadLock.wait();
 				}
 
 				for(int i = 0; i <= time; i++){
+					currentSongPosition = formatTime.format(i * 1000);
 					
-					System.out.print("\r" + fileName + " (" + formatTime.format(i * 1000) + " / " + songLength + ")");
+					System.out.print("\r" + fileName + " (" + currentSongPosition + " / " + currentSongLength + ")");
 					
 					try{
 						Thread.sleep(1000);
