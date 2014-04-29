@@ -1,3 +1,10 @@
+/**
+ * Evan Reichard
+ * https://github.com/evreichard
+ * evan@evanreichard.com
+ * 2013 - 2014
+ **/
+
 import java.util.ArrayList;
 import java.io.*;
 import java.net.*;

@@ -1,3 +1,10 @@
+/**
+ * Evan Reichard
+ * https://github.com/evreichard
+ * evan@evanreichard.com
+ * 2013 - 2014
+ **/
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;

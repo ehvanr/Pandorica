@@ -3,6 +3,8 @@
  * https://github.com/evreichard
  * evan@evanreichard.com
  * 2013 - 2014
+ *
+ * Taken and modified from here http://stackoverflow.com/questions/12057214/jlayer-pause-and-resume-song
  **/
 
 import javazoom.jl.player.Player;

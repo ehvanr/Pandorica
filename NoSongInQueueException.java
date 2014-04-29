@@ -2,9 +2,7 @@
  * Evan Reichard
  * https://github.com/evreichard
  * evan@evanreichard.com
- * April 2013
- *
- * BETA 1
+ * 2013 - 2014
  **/
 
 public class NoSongInQueueException extends Exception {
