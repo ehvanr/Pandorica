@@ -13,8 +13,10 @@ import java.util.Scanner;
 
 public class PandoraGUI{
 	
+	MainPandora pandoraBackEnd = new MainPandora();
+	Scanner in = new Scanner(System.in);
+	
 	public PandoraGUI(){
-		MainPandora pandoraBackEnd = new MainPandora();
 		
 		// Prompt Password
 		String tempPassArr[] = promptPassword();
@@ -22,23 +24,10 @@ public class PandoraGUI{
 		// Login with password
 		pandoraBackEnd.pandoraLogin(tempPassArr[0], tempPassArr[1]);
 		
-		// Get Station List
-		ArrayList<ArrayList<String>> tempStationList = pandoraBackEnd.getStationList();
-		
-		// Print and choose station
-		for(ArrayList<String> tempAL : tempStationList){
-			System.out.println("(" + (tempStationList.indexOf(tempAL) + 1) + ") " + tempAL.get(0) + ", " + tempAL.get(1));
-		}
-		
-		Scanner in = new Scanner(System.in);
-		System.out.print("\nPlease enter a station: ");
-		int selection = in.nextInt() - 1;
-		String stationId = tempStationList.get(selection).get(1);
-		
 		QueueManager queueMan = new QueueManager(pandoraBackEnd);
 		queueMan.saveAsMP3(true);
 		
-		queueMan.playStation(stationId);
+		queueMan.playStation(AskStation());
 		
 		String tempIn;
 		
@@ -51,8 +40,30 @@ public class PandoraGUI{
 				queueMan.resume();
 			}else if(tempIn.equals("n")){
 				queueMan.nextSong();
+			}else if(tempIn.equals("s")){
+				// Stop everything here
+				queueMan.stop();
+				queueMan.playStation(AskStation());
+			}else if(tempIn.equals("h")){
+				System.out.println("p - pause\nr - resume\nn - next\ns - stations");
 			}
 		}		
+	}
+	
+	public String AskStation(){
+		// Get Station List
+		ArrayList<ArrayList<String>> tempStationList = pandoraBackEnd.getStationList();
+		
+		// Print and choose station
+		for(ArrayList<String> tempAL : tempStationList){
+			System.out.println("(" + (tempStationList.indexOf(tempAL) + 1) + ") " + tempAL.get(0) + ", " + tempAL.get(1));
+		}
+		
+		System.out.print("\nPlease enter a station: ");
+		int selection = in.nextInt() - 1;
+		String stationId = tempStationList.get(selection).get(1);
+		
+		return stationId;
 	}
 	
 	// [TEMPORARY] This prompts for the password, implement GUI in this.

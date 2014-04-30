@@ -17,6 +17,7 @@ public class QueueManager{
 	private final static int PLAYING = 1;
     private final static int PAUSED = 2;
 	private final static int FINISHED = 3;
+	private final static int STOPPED = 4;
 	
 	private int playerStatus = NOTSTARTED;
 	
@@ -38,7 +39,6 @@ public class QueueManager{
 	
 	// InputStream for the current song, accessable via the threads
 	InputStream is;
-	
 	
 	String fileName;
 	
@@ -93,6 +93,13 @@ public class QueueManager{
 	public void nextSong(){
 		synchronized(threadLock){
 			playerStatus = FINISHED;
+			liveSong.stop();
+		}
+	}
+	
+	public void stop(){
+		synchronized(threadLock){
+			playerStatus = STOPPED;
 			liveSong.stop();
 		}
 	}
@@ -212,6 +219,11 @@ public class QueueManager{
 
 	public void playStation(String tempStationId){
 		stationId = tempStationId;
+		
+		synchronized(threadLock){
+			playerStatus = NOTSTARTED;
+		}
+		
 		ThreadedQueue playQueue = new ThreadedQueue();
 		playQueue.start();
 	}
@@ -233,6 +245,14 @@ public class QueueManager{
 					}
 				}else{
 					// Plays song on top
+					
+					synchronized(threadLock){
+						if(playerStatus == STOPPED){
+							songPlaylist.removeAll(songPlaylist);
+							break;
+						}
+					}
+					
 					try{
 						playQueue();
 					}catch(NoSongInQueueException nsiqe){
@@ -268,7 +288,7 @@ public class QueueManager{
 							}
 							
 							synchronized(threadLock){
-								if(playerStatus == FINISHED){
+								if(playerStatus == FINISHED || playerStatus == STOPPED){
 									break;
 								}
 								
@@ -339,7 +359,7 @@ public class QueueManager{
 							}catch(Exception e){}
 						}
 						
-						if(playerStatus == FINISHED){
+						if(playerStatus == FINISHED || playerStatus == STOPPED){
 							break;
 						}
 					}
