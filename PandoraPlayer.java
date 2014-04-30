@@ -66,7 +66,6 @@ public class PandoraPlayer{
      * Pauses playback. Returns true if new state is PAUSED.
      */
     public boolean pause() {
-		System.out.println("Trying to pause...");
         synchronized (playerLock) {
             if (playerStatus == PLAYING) {
                 playerStatus = PAUSED;
@@ -79,8 +78,6 @@ public class PandoraPlayer{
      * Resumes playback. Returns true if the new state is PLAYING.
      */
     public boolean resume() {
-	
-	System.out.println("Trying to resume...");
         synchronized (playerLock) {
             if (playerStatus == PAUSED) {
                 playerStatus = PLAYING;
@@ -103,6 +100,7 @@ public class PandoraPlayer{
     private void playInternal() {
         while (playerStatus != FINISHED) {
             try {
+				// Plays one frame, breaks if last frame played
                 if (!player.play(1)) {
                     break;
                 }

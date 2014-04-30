@@ -40,13 +40,17 @@ public class PandoraGUI{
 		
 		queueMan.playStation(stationId);
 		
-		selection = in.nextInt() - 1;
+		String tempIn;
 		
-		queueMan.pause();
-		
-		selection = in.nextInt() - 1;
-		
-		queueMan.resume();
+		while(true){
+			tempIn = in.next();
+			
+			if(tempIn.equals("p")){
+				queueMan.pause();
+			}else if(tempIn.equals("r")){
+				queueMan.resume();
+			}
+		}		
 	}
 	
 	// [TEMPORARY] This prompts for the password, implement GUI in this.

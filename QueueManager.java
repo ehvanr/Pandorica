@@ -13,6 +13,12 @@ import javazoom.jl.decoder.*;
 import java.text.SimpleDateFormat;
 
 public class QueueManager{
+	private final static int NOTSTARTED = 0;
+	private final static int PLAYING = 1;
+    private final static int PAUSED = 2;
+	private final static int FINISHED = 3;
+	
+	private int playerStatus = NOTSTARTED;
 	
 	// To access the backend, this object must be passed through in the constructor
 	MainPandora pandoraBackEnd;
@@ -70,14 +76,20 @@ public class QueueManager{
 	}
 	
 	public void pause(){
+		playerStatus = PAUSED;
 		liveSong.pause();
 	}
 	
 	public void resume(){
-		liveSong.resume();
+		synchronized(threadLock){
+			playerStatus = PLAYING;
+			liveSong.resume();
+			threadLock.notifyAll();
+		}
 	}
 	
 	public void stop(){
+		playerStatus = FINISHED;
 		liveSong.stop();
 	}
 	
@@ -237,8 +249,6 @@ public class QueueManager{
 						int read = 0;
 						byte[] bytes = new byte[512];
 						
-						
-						
 						// Loops while there is still input stream data
 						while((length = is.read(bytes)) != -1){
 							
@@ -286,6 +296,7 @@ public class QueueManager{
 			try{
 				synchronized(threadLock){
 					threadLock.wait();
+					playerStatus = PLAYING;
 				}
 				
 				play();
@@ -296,8 +307,6 @@ public class QueueManager{
 		}
 	}
 	
-	// Do we even need this? Just have a get method that allows you to retrieve total time of currentSong
-	// Then implement counter there
 	class ProgressManager implements Runnable{
 		
 		public void run(){
@@ -307,12 +316,20 @@ public class QueueManager{
 				SimpleDateFormat formatTime = new SimpleDateFormat("mm:ss");
 				currentSongLength = formatTime.format(time * 1000);
 				
-				synchronized(threadLock){
-					threadLock.wait();
-				}
-
 				for(int i = 0; i <= time; i++){
 					currentSongPosition = formatTime.format(i * 1000);
+					
+					// ---------------
+					synchronized (threadLock) {
+						while (playerStatus != PLAYING) {
+							try {
+								threadLock.wait();
+							}catch(Exception e){}
+						}
+					}
+					
+				
+					// ---------------
 					
 					System.out.print("\r" + fileName + " (" + currentSongPosition + " / " + currentSongLength + ")");
 					
@@ -321,6 +338,7 @@ public class QueueManager{
 					}catch(Exception e){}
 
 				}
+			
 
 				System.out.println("\r" + fileName + "                 ");
 			}catch(Exception e){}
