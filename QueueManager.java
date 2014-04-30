@@ -76,8 +76,10 @@ public class QueueManager{
 	}
 	
 	public void pause(){
-		playerStatus = PAUSED;
-		liveSong.pause();
+		synchronized(threadLock){
+			playerStatus = PAUSED;
+			liveSong.pause();
+		}
 	}
 	
 	public void resume(){
@@ -88,13 +90,11 @@ public class QueueManager{
 		}
 	}
 	
-	public void stop(){
-		playerStatus = FINISHED;
-		liveSong.stop();
-	}
-	
 	public void nextSong(){
-		
+		synchronized(threadLock){
+			playerStatus = FINISHED;
+			liveSong.stop();
+		}
 	}
 	
 	public int getBufferPercentage(){
@@ -179,6 +179,12 @@ public class QueueManager{
 					Thread progressThread = new Thread(liveProgress);
 					Thread songThread = new Thread(liveSong);
 					
+					// If skipped previously, we need to switch from "FINISHED" to "PLAYING" before we start any threads
+					// to make sure they don't prematurely end
+					synchronized(threadLock){
+						playerStatus = PLAYING;
+					}
+					
 					progressThread.start();
 					songThread.start();
 					bufferThread.start();
@@ -261,17 +267,23 @@ public class QueueManager{
 								estPercentDone = 100;
 							}
 							
-							// Notifies the play thread that we're ready to go (This is only needed to have a timer and play locally if enabled)
-							if(read > 49152){
-								synchronized(threadLock){
+							synchronized(threadLock){
+								if(playerStatus == FINISHED){
+									break;
+								}
+								
+								// Notifies the play thread that we're ready to go (This is only needed to have a timer and play locally if enabled)
+								if(read > 49152){
 									threadLock.notifyAll();
 								}
 							}
 						}
 						
-						// If saveToMP3, write out to file.  Otherwise, skip.
-						if(saveToMP3){
-							writeStream.write(currentFile);
+						synchronized(threadLock){
+							// If saveToMP3, write out to file.  Otherwise, skip.
+							if(saveToMP3 && playerStatus != FINISHED){
+								writeStream.write(currentFile);
+							}
 						}
 						
 						bytes = null;
@@ -321,10 +333,14 @@ public class QueueManager{
 					
 					// ---------------
 					synchronized (threadLock) {
-						while (playerStatus != PLAYING) {
+						while (playerStatus == PAUSED) {
 							try {
 								threadLock.wait();
 							}catch(Exception e){}
+						}
+						
+						if(playerStatus == FINISHED){
+							break;
 						}
 					}
 					

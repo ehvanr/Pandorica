@@ -49,6 +49,8 @@ public class PandoraGUI{
 				queueMan.pause();
 			}else if(tempIn.equals("r")){
 				queueMan.resume();
+			}else if(tempIn.equals("n")){
+				queueMan.nextSong();
 			}
 		}		
 	}
