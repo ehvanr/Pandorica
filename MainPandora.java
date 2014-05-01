@@ -11,7 +11,7 @@
  **/
  
 import javax.crypto.spec.SecretKeySpec;
-import org.apache.commons.codec.binary.Hex;
+import javax.xml.bind.DatatypeConverter;
 import javax.crypto.Cipher;
 import java.util.ArrayList;
 import com.google.gson.*;
@@ -22,8 +22,8 @@ import java.io.*;
 
 public class MainPandora{
 
-	static String BASE_HTTPS_URL = "https://tuner.pandora.com/services/json/?method=";
-	static String BASE_HTTP_URL = "http://tuner.pandora.com/services/json/?method=";
+	private static String BASE_HTTPS_URL = "https://tuner.pandora.com/services/json/?method=";
+	private static String BASE_HTTP_URL = "http://tuner.pandora.com/services/json/?method=";
 	private String partnerAuthToken;
 	private String urlPAT;
 	private long clientStartTime;
@@ -61,31 +61,33 @@ public class MainPandora{
 			
 			HttpURLConnection hc = (HttpURLConnection) url.openConnection();
 
+			// Set all HttpURLConnection settings
 			hc.setRequestMethod("POST");
 			hc.setDoOutput(true);
 			hc.setDoInput(true);
 			hc.setRequestProperty("Content-Type", "text/plain");
 			hc.connect();
 
-			// WRITE
+			// The output stream
 			DataOutputStream out = new DataOutputStream(hc.getOutputStream());
-
+			
+			// Sends out the JSON request
 			out.writeBytes(toSend);
 			out.flush();
 			out.close();
 
-			// RECEIVE
+			// Receives the response
 			BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
 			inputLine = br.readLine();
 			br.close();
 
 		}catch(MalformedURLException murle){
-			System.out.println("MalformedURLException");
+			System.out.println("MalformedURLException - This shouldn't happen as the URL's are embedded");
 		}catch(IOException ioe){
 			System.out.println("IOException");
 		}
 
-		// CREATE OBJECT FROM RECEIVED STRING
+		// Parses the response as a JsonObject
 		JsonParser parser = new JsonParser();
 		JsonObject receivedObj = (JsonObject)parser.parse(inputLine);
 
@@ -103,7 +105,8 @@ public class MainPandora{
 		byte[] decryptedBytes = null;
 
 		try{
-			byte[] encryptedBytes = Hex.decodeHex(encrypted.toCharArray());
+			byte[] encryptedBytes = DatatypeConverter.parseHexBinary(encrypted);
+			
 			Cipher blowfishECB = Cipher.getInstance("Blowfish/ECB/PKCS5Padding");
 			SecretKeySpec blowfishKey = new SecretKeySpec("R=U!LH$O2B#".getBytes(), "Blowfish");
 			blowfishECB.init(Cipher.DECRYPT_MODE, blowfishKey);
@@ -137,8 +140,9 @@ public class MainPandora{
 		}catch(Exception e){
 			e.printStackTrace();
 		}
-
-		String encrypted = Hex.encodeHexString(encryptedBytes);
+		
+		// It will fail if in uppercase -__-
+		String encrypted = DatatypeConverter.printHexBinary(encryptedBytes).toLowerCase();
 		return encrypted;
 	}
 
