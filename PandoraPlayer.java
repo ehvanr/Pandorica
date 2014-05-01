@@ -15,10 +15,11 @@ import java.nio.*;
 
 public class PandoraPlayer{
 	
-	private final static int NOTSTARTED = 0;
-    private final static int PLAYING = 1;
-    private final static int PAUSED = 2;
-    private final static int FINISHED = 3;
+	public final static int NOTSTARTED = 0;
+	public final static int PLAYING = 1;
+    public final static int PAUSED = 2;
+	public final static int FINISHED = 3;
+	public final static int STOPPED = 4;
 	
 	// the player actually doing all the work
     private final Player player;
