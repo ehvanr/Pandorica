@@ -31,10 +31,7 @@ public class QueueManager{
 	private final Object threadLock = new Object();	
 	
 	// Current playing song
-	PandoraSong currentSong = new PandoraSong();
-	
-	// InputStream for the current song, accessable via the threads
-	InputStream is;
+	volatile PandoraSong currentSong = new PandoraSong();
 	
 	// The actual song itself, accesses by the buffer and play thread
 	byte[] currentFile;
@@ -47,9 +44,6 @@ public class QueueManager{
 	
 	// The time (in seconds)
 	int time;
-	
-	// Est FileSize (Pass this to thread instead of global)
-	int estFileSizeKB;
 	
 	// The estPercentDone calc and updated by the buffer thread.  As well as Song Length and Song position.
 	int estPercentDone = 0;
@@ -127,15 +121,21 @@ public class QueueManager{
 	// --------------------------------------------------------------------------------------\\
 	
 	public int getBufferPercentage(){
-		return estPercentDone;
+		synchronized(threadLock){
+			return estPercentDone;
+		}
 	}
 	
 	public String getCurrentSongLength(){
-		return currentSongLength;
+		synchronized(threadLock){
+			return currentSongLength;
+		}
 	}
 	
 	public String getCurrentSongPosition(){
-		return currentSongPosition;
+		synchronized(threadLock){
+			return currentSongPosition;
+		}
 	}
 	
 	public PandoraSong getCurrentSong(){
@@ -176,6 +176,9 @@ public class QueueManager{
 						songPlaylist.add(tempSong);
 					}
 				}else{
+					
+					String streamURL;
+					
 					synchronized(threadLock){
 						if(currentSong.getSongStatus() == STOPPED){
 							songPlaylist.removeAll(songPlaylist);
@@ -185,11 +188,12 @@ public class QueueManager{
 							break;
 						}
 						
+						currentSong = null;
 						currentSong = songPlaylist.get(0);
+					
+						streamURL = currentSong.getAudioUrl();
 					}
 					
-					String streamURL = currentSong.getAudioUrl();
-
 					// Play file
 					try{
 						URL url = new URL(streamURL);
@@ -197,15 +201,16 @@ public class QueueManager{
 						int size = urlConnect.getContentLength();
 						urlConnect.disconnect();
 
-						is = url.openStream();
+						InputStream is = url.openStream();
 						
 						Bitstream stream = new Bitstream(is);
+						
 						Header header = stream.readFrame();
 						stream.unreadFrame();
 						
 						time = (int)(header.total_ms(size) / 1000);
 						
-						estFileSizeKB = (time * 128) / 8;
+						int tempEstFileSizeKB = (time * 128) / 8;
 						
 						if(time == 42){
 							System.out.print("Skipping song...");
@@ -215,7 +220,7 @@ public class QueueManager{
 							
 							ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
 				
-							BufferManager liveBuffer = new BufferManager(); 
+							BufferManager liveBuffer = new BufferManager(is, tempEstFileSizeKB); 
 							ProgressManager liveProgress = new ProgressManager();
 							liveSong = new SongPlayer(readFromArray);
 							
@@ -259,6 +264,14 @@ public class QueueManager{
 	
 	class BufferManager implements Runnable{
 		
+		int estFileSizeKB;
+		InputStream tempIS;
+		
+		public BufferManager(InputStream parentIS, int tempEstFileSizeKB){
+			estFileSizeKB = tempEstFileSizeKB;
+			tempIS = parentIS;
+		}
+		
 		public void run() {
 		
 				try{
@@ -267,25 +280,27 @@ public class QueueManager{
 						byte[] byteArray = new byte[512];
 						
 						// Loops while there is still input stream data
-						while((byteLength = is.read(byteArray)) != -1){
-							
-							// Appends bytes to currentFile index 0 byte array
-							System.arraycopy(byteArray, 0,  currentFile, byteRead, byteLength);
-							byteRead += byteLength;
-							
-							estPercentDone = (int)((((double)byteRead / 1024.0) / (double)estFileSizeKB) * 100.0);
-							
-							// If estimation is above 100, set to 100% (We'll be done in no time at this point)
-							if(estPercentDone > 100){
-								estPercentDone = 100;
-							}
+						while((byteLength = tempIS.read(byteArray)) != -1){
 							
 							synchronized(threadLock){
+								// Appends bytes to currentFile index 0 byte array.  Hard to read, but it's quick.
+								System.arraycopy(byteArray, 0, currentFile, byteRead, byteLength);
+								byteRead += byteLength;
+							
+								// Caclulate Buffer % done (Should this be updated on that actual song object? And then 
+								// accessed via the object received from this class?)
+								estPercentDone = (int)((((double)byteRead / 1024.0) / (double)estFileSizeKB) * 100.0);
+								
+								// If estimation is above 100, set to 100% (We'll be done in no time at this point)
+								if(estPercentDone > 100){
+									estPercentDone = 100;
+								}
+							
 								if(currentSong.getSongStatus() == FINISHED || currentSong.getSongStatus() == STOPPED){
 									break;
 								}
 								
-								// Notifies the play thread that we're ready to go (This is only needed to have a timer and play locally if enabled)
+								// WE SHOULD IMPLEMENT AN ACTUAL BUFFER THAT PAUSES AND RESUMES THE CURRENT SONG
 								if(byteRead > 49152){
 									threadLock.notifyAll();
 								}
@@ -293,6 +308,11 @@ public class QueueManager{
 						}
 						
 						synchronized(threadLock){
+							
+							estPercentDone = 100;
+						
+							// This is what determines if we are going to save the song or not (Dependent on whether the song is finished and 
+							// whether we previously set the saveToMP3 boolean value to true)
 							if(saveToMP3 && currentSong.getSongStatus() != FINISHED){
 								OutputStream writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.getArtistName() + " - " + currentSong.getSongName() + ".mp3"));
 								writeStream.write(currentFile);
@@ -356,7 +376,15 @@ public class QueueManager{
 						}
 					}
 					
-					System.out.print("\r" + getBufferPercentage() + "% : " + currentSong.getArtistName() + " - " + currentSong.getSongName() + " (" + currentSongPosition + " / " + currentSongLength + ")");
+					String bufferInfo;
+					
+					if(getBufferPercentage() == 100){
+						bufferInfo = "[DONE]  ";
+					}else{
+						bufferInfo = "[" + getBufferPercentage() + "%] ";
+					}
+					
+					System.out.print("\r" + bufferInfo + currentSong.getArtistName() + " - " + currentSong.getSongName() + " (" + currentSongPosition + " / " + currentSongLength + ")");
 					
 					try{
 						Thread.sleep(1000);
@@ -364,7 +392,7 @@ public class QueueManager{
 
 				}
 				
-				System.out.println("\r" + "Playing: " + currentSong.getArtistName() + " - " + currentSong.getSongName() + "                 ");
+				System.out.println("\r" + "Played: " + currentSong.getArtistName() + " - " + currentSong.getSongName() + "                      ");
 				
 			}catch(Exception e){}
 			

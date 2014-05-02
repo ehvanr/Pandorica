@@ -403,7 +403,5 @@ public class MainPandora{
 		}
 	}
 
-	public MainPandora(){
-		
-	}
+	public MainPandora(){}
 }
