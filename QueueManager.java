@@ -28,10 +28,10 @@ public class QueueManager{
 	MainPandora pandoraBackEnd;
 	
 	// The object to notify threads
-	private final Object threadLock = new Object();	
+	private final Object threadLock = new Object();
 	
 	// Current playing song
-	volatile PandoraSong currentSong = new PandoraSong();
+	PandoraSong currentSong = new PandoraSong();
 	
 	// The actual song itself, accesses by the buffer and play thread
 	byte[] currentFile;
@@ -80,6 +80,19 @@ public class QueueManager{
 		}
 	}
 	
+	public void toggle(){
+		synchronized(threadLock){
+			if(currentSong.getSongStatus() == PLAYING){
+				currentSong.setSongStatus(PAUSED);
+				liveSong.pause();
+			}else if(currentSong.getSongStatus() == PAUSED){
+				currentSong.setSongStatus(PLAYING);
+				liveSong.resume();
+				threadLock.notifyAll();
+			}
+		}
+	}
+	
 	public void nextSong(){
 		synchronized(threadLock){
 			currentSong.setSongStatus(FINISHED);
@@ -89,8 +102,10 @@ public class QueueManager{
 	
 	public void stop(){
 		synchronized(threadLock){
-			currentSong.setSongStatus(STOPPED);
-			liveSong.stop();
+			if(liveSong != null){
+				currentSong.setSongStatus(STOPPED);
+				liveSong.stop();
+			}
 		}
 	}
 	
@@ -272,7 +287,7 @@ public class QueueManager{
 			tempIS = parentIS;
 		}
 		
-		public void run() {
+		public void run(){
 		
 				try{
 						int byteLength = 0;
@@ -362,8 +377,6 @@ public class QueueManager{
 				currentSongLength = formatTime.format(time * 1000);
 				
 				for(int i = 0; i <= time; i++){
-					currentSongPosition = formatTime.format(i * 1000);
-					
 					synchronized (threadLock) {
 						while (currentSong.getSongStatus() == PAUSED) {
 							try {
@@ -376,24 +389,13 @@ public class QueueManager{
 						}
 					}
 					
-					String bufferInfo;
-					
-					if(getBufferPercentage() == 100){
-						bufferInfo = "[DONE]  ";
-					}else{
-						bufferInfo = "[" + getBufferPercentage() + "%] ";
-					}
-					
-					System.out.print("\r" + bufferInfo + currentSong.getArtistName() + " - " + currentSong.getSongName() + " (" + currentSongPosition + " / " + currentSongLength + ")");
+					currentSongPosition = formatTime.format(i * 1000);
 					
 					try{
 						Thread.sleep(1000);
 					}catch(Exception e){}
 
 				}
-				
-				System.out.println("\r" + "Played: " + currentSong.getArtistName() + " - " + currentSong.getSongName() + "                      ");
-				
 			}catch(Exception e){}
 			
 		}
