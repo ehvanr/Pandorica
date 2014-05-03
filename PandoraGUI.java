@@ -38,8 +38,12 @@ public class PandoraGUI{
 	JLabel songProgress = new JLabel();
 	JLabel albumArt = new JLabel();
 	
-	public PandoraGUI(){
-		PromptPassword();
+	public PandoraGUI(boolean GUI){
+		if(GUI){
+			PromptGUIPassword();
+		}else{
+			PromptTerminalPassword();
+		}
 	}
 	
 	public void LoadMainScreen(){
@@ -99,12 +103,12 @@ public class PandoraGUI{
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		// We lock here
-		SongContentUpdate songClass = new SongContentUpdate();
+		SongGUIContentUpdate songClass = new SongGUIContentUpdate();
 		Thread songPlayingThread = new Thread(songClass);
 		songPlayingThread.start();
 	}
 	
-	public void PromptPassword(){
+	public void PromptGUIPassword(){
 		final JFrame passwordFrame = new JFrame("Pandorica Login");
 		passwordFrame.setSize(350, 200);
 		passwordFrame.setLayout(new GridLayout(3, 0));
@@ -121,7 +125,7 @@ public class PandoraGUI{
 			public void actionPerformed(ActionEvent ae){
 				if(pandoraBackEnd.pandoraLogin(emailField.getText(), new String(passwordField.getPassword()))){
 					passwordFrame.setVisible(false);
-					PopulateStations();
+					PopulateGUIStations();
 					LoadMainScreen();
 					// queueMan.saveAsMP3(true);
 				}
@@ -146,7 +150,75 @@ public class PandoraGUI{
 		passwordFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 	
-	class SongContentUpdate implements Runnable{
+	public void PromptTerminalPassword(){
+		
+		Scanner in = new Scanner(System.in);
+		System.out.print("Email: ");
+		String username = in.nextLine();
+		Console console = System.console();
+		char passwordArray[] = console.readPassword("Password: ");
+
+		// Login with password
+		pandoraBackEnd.pandoraLogin(username, new String(passwordArray));
+
+		queueMan.saveAsMP3(true);
+
+		queueMan.playStation(PopulateTerminalStations());
+
+		SongTerminalContentUpdate songClass = new SongTerminalContentUpdate();
+		Thread songPlayingThread = new Thread(songClass);
+		songPlayingThread.start();
+		
+		String tempIn;
+
+		while(true){
+			tempIn = in.next();
+
+			if(tempIn.equals("p")){
+				queueMan.pause();
+			}else if(tempIn.equals("r")){
+				queueMan.resume();
+			}else if(tempIn.equals("n")){
+				queueMan.nextSong();
+			}else if(tempIn.equals("s")){
+				// Stop everything here
+				queueMan.stop();
+				queueMan.playStation(PopulateTerminalStations());
+			}else if(tempIn.equals("h")){
+				System.out.println("p - pause\nr - resume\nn - next\ns - stations");
+			}
+		}
+	
+	}
+	
+	public void PopulateGUIStations(){
+		// Get Station List
+		ArrayList<ArrayList<String>> stationList = pandoraBackEnd.getStationList();
+		
+		// Print and choose station
+		for(ArrayList<String> tempAL : stationList){
+			// stationCB.addItem(tempAL.get(0));
+			stationCB.addItem(new ComboItem(tempAL.get(0), tempAL.get(1)));
+		}
+	}
+	
+	public String PopulateTerminalStations(){
+		// Get Station List
+		ArrayList<ArrayList<String>> tempStationList = pandoraBackEnd.getStationList();
+
+		// Print and choose station
+		for(ArrayList<String> tempAL : tempStationList){
+			System.out.println("(" + (tempStationList.indexOf(tempAL) + 1) + ") " + tempAL.get(0) + ", " + tempAL.get(1));
+		}
+
+		System.out.print("\nPlease enter a station: ");
+		int selection = in.nextInt() - 1;
+		String stationId = tempStationList.get(selection).get(1);
+
+		return stationId;
+	}
+	
+	class SongGUIContentUpdate implements Runnable{
 		public void run(){
 			synchronized(threadLock){
 				while(true){
@@ -192,6 +264,48 @@ public class PandoraGUI{
 		}
 	}
 	
+	class SongTerminalContentUpdate implements Runnable{
+		public void run(){
+			synchronized(threadLock){
+				while(true){
+
+					// On first start, we wait for song to start playing
+					while(queueMan.getCurrentSong().getSongStatus() != PLAYING){						
+						
+						// Sleep for 100ms
+						try{
+							Thread.sleep(100);
+						}catch(Exception e){}
+					}
+					
+					// Gather playing song
+					currentSong = queueMan.getCurrentSong();
+					
+					
+					String songName = currentSong.getSongName();
+					String artistName = currentSong.getArtistName(); 
+					String currentSongLength = queueMan.getCurrentSongLength();
+					
+					// Loop while our cached song is the same as the one in queue
+					while(currentSong.getAudioUrl().equals(queueMan.getCurrentSong().getAudioUrl())){
+						String currentSongPosition = queueMan.getCurrentSongPosition();
+						Integer bufferPercentage = queueMan.getBufferPercentage();
+						
+						System.out.print("\r" + "[" + bufferPercentage + "%] " + artistName + " - " + songName + " (" + currentSongPosition + " / " + currentSongLength + ")");
+						
+						// Sleep for 100ms
+						try{
+							Thread.sleep(100);
+						}catch(Exception e){}
+					}
+					
+					System.out.println("\r" + artistName + " - " + songName + " (PLAYED)                            ");
+					
+				}
+			}
+		}
+	}
+	
 	class ComboItem{
 	
 		private String key;
@@ -220,18 +334,14 @@ public class PandoraGUI{
 		}
 	}
 	
-	public void PopulateStations(){
-		// Get Station List
-		ArrayList<ArrayList<String>> stationList = pandoraBackEnd.getStationList();
-		
-		// Print and choose station
-		for(ArrayList<String> tempAL : stationList){
-			// stationCB.addItem(tempAL.get(0));
-			stationCB.addItem(new ComboItem(tempAL.get(0), tempAL.get(1)));
-		}
-	}
-	
 	public static void main(String args[]){
-		new PandoraGUI();
+		if(args.length == 0){
+			new PandoraGUI(true);
+		}else if(args.length == 1 && args[0].equals("-nogui")){
+			// Execute no gui
+			new PandoraGUI(false);
+		}else{
+			System.out.println("Invalid Command Line Arguments.\n\t-nogui\n\t\tAppend this flag to execute the program with no gui.");
+		}
 	}
 }
