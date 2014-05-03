@@ -71,7 +71,6 @@ public class PandoraGUI{
 			public void actionPerformed(ActionEvent ae){
 				queueMan.stop();
 				ComboItem tempItem = (ComboItem)stationCB.getSelectedItem();
-				System.out.println(tempItem.getKey() + ", " + tempItem.getValue());
 				queueMan.playStation(tempItem.getValue());
 			}
 		});

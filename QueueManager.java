@@ -227,9 +227,9 @@ public class QueueManager{
 						
 						int tempEstFileSizeKB = (time * 128) / 8;
 						
-						if(time == 42){
-							System.out.print("Skipping song...");
-						}else{
+						// if(time == 42){
+						//	System.out.print("Skipping song...");
+						//}else{
 
 							currentFile = new byte[size];
 							
@@ -259,7 +259,7 @@ public class QueueManager{
 							
 							currentFile = null;
 							System.gc();
-						}
+						//}
 						
 						stream.close();
 						is.close();
