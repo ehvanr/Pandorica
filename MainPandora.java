@@ -39,6 +39,9 @@ public class MainPandora{
 	
 	Gson gson = new Gson();
 	
+	// Can only be accessed from the getInstance() method (This prevents accidentally spawning another MainPandora object)
+	private MainPandora(){}
+	
 	/**
 	 * Singleton Object
 	 **/
@@ -416,6 +419,4 @@ public class MainPandora{
 			return false;
 		}
 	}
-
-	private MainPandora(){}
 }

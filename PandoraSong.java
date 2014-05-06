@@ -7,17 +7,18 @@
 
 public class PandoraSong{
 	
-	public PlayerStatus songStatus = PlayerStatus.NOTSTARTED;
-
-	public String songAlbumName;
-	public String songAlbumArtUrl;
-	public String songName;
-	public String songArtistName;
-	public String songAudioUrl;
+	private PlayerStatus songStatus = PlayerStatus.NOTSTARTED;
+	private String songAlbumName;
+	private String songAlbumArtUrl;
+	private String songName;
+	private String songArtistName;
+	private String songAudioUrl;
 	
-	public PandoraSong(){
-		
-	}
+	// --------------------------------------------------------------------------------------\\
+	// ------------------------------------ CONSTRUCTORS ------------------------------------\\
+	// --------------------------------------------------------------------------------------\\
+	
+	public PandoraSong(){}
 	
 	public PandoraSong(String tempSongName, String tempAlbumName, String tempArtistName, String tempAlbumArtUrl, String tempAudioUrl){
 		songName = tempSongName;
@@ -26,6 +27,10 @@ public class PandoraSong{
 		songAlbumArtUrl = tempAlbumArtUrl;
 		songAudioUrl = tempAudioUrl;
 	}
+	
+	// --------------------------------------------------------------------------------------\\
+	// ---------------------------------- ACCESSOR METHODS ----------------------------------\\
+	// --------------------------------------------------------------------------------------\\
 	
 	public String getAlbumName(){
 		return songAlbumName;
@@ -50,6 +55,10 @@ public class PandoraSong{
 	public PlayerStatus getSongStatus(){
 		return songStatus;
 	}
+	
+	// --------------------------------------------------------------------------------------\\
+	// ---------------------------------- MODIFIER METHODS ----------------------------------\\
+	// --------------------------------------------------------------------------------------\\
 	
 	public void setSongStatus(PlayerStatus VALUE){
 		songStatus = VALUE;

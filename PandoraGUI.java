@@ -18,8 +18,10 @@ import javax.swing.border.EmptyBorder;
 
 public class PandoraGUI{
 	
-	MainPandora pandoraBackEnd = MainPandora.getInstance();
-	QueueManager queueMan = new QueueManager();
+	// Receives Singleton Objects (And creates it if they don't already exist)
+	private MainPandora pandoraBackEnd = MainPandora.getInstance();
+	private QueueManager queueMan = QueueManager.getInstance();
+	
 	Scanner in = new Scanner(System.in);
 	
 	PandoraSong currentSong = new PandoraSong();
@@ -31,15 +33,24 @@ public class PandoraGUI{
 	JLabel songProgress = new JLabel();
 	JLabel albumArt = new JLabel();
 	
+	// --------------------------------------------------------------------------------------\\
+	// ------------------------------------ CONSTRUCTOR ------------------------------------ \\
+	// --------------------------------------------------------------------------------------\\
+	
 	public PandoraGUI(boolean GUI){
 		if(GUI){
-			PromptGUIPassword();
+			LoadPasswordGUI();
 		}else{
-			PromptTerminalPassword();
+			LoadPasswordTerminal();
 		}
 	}
 	
-	public void LoadMainScreen(){
+	// --------------------------------------------------------------------------------------\\
+	// ------------------------------------ GUI LOADERS ------------------------------------ \\
+	// --------------------------------------------------------------------------------------\\
+	
+	public void LoadPlayerGUI(){
+		
 		JFrame mainFrame = new JFrame("Pandorica");
 		mainFrame.setSize(800, 370);
 		mainFrame.setLayout(new BorderLayout());
@@ -101,7 +112,7 @@ public class PandoraGUI{
 		songPlayingThread.start();
 	}
 	
-	public void PromptGUIPassword(){
+	public void LoadPasswordGUI(){
 		final JFrame passwordFrame = new JFrame("Pandorica Login");
 		passwordFrame.setSize(350, 200);
 		passwordFrame.setLayout(new GridLayout(3, 0));
@@ -118,8 +129,8 @@ public class PandoraGUI{
 			public void actionPerformed(ActionEvent ae){
 				if(pandoraBackEnd.pandoraLogin(emailField.getText(), new String(passwordField.getPassword()))){
 					passwordFrame.setVisible(false);
-					PopulateGUIStations();
-					LoadMainScreen();
+					LoadGUIStations();
+					LoadPlayerGUI();
 					// queueMan.saveAsMP3(true);
 				}
 			}
@@ -143,7 +154,22 @@ public class PandoraGUI{
 		passwordFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 	
-	public void PromptTerminalPassword(){
+	public void LoadGUIStations(){
+		// Get Station List
+		ArrayList<ArrayList<String>> stationList = pandoraBackEnd.getStationList();
+		
+		// Print and choose station
+		for(ArrayList<String> tempAL : stationList){
+			// stationCB.addItem(tempAL.get(0));
+			stationCB.addItem(new ComboItem(tempAL.get(0), tempAL.get(1)));
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------\\
+	// --------------------------------- TERMINAL LOADERS ---------------------------------- \\
+	// --------------------------------------------------------------------------------------\\
+	
+	public void LoadPasswordTerminal(){
 		
 		Scanner in = new Scanner(System.in);
 		System.out.print("Email: ");
@@ -153,10 +179,14 @@ public class PandoraGUI{
 
 		// Login with password
 		pandoraBackEnd.pandoraLogin(username, new String(passwordArray));
+		
+		LoadPlayerTerminal();
+	}
 
+	public void LoadPlayerTerminal(){
 		queueMan.saveAsMP3(true);
 
-		queueMan.playStation(PopulateTerminalStations());
+		queueMan.playStation(LoadTerminalStations());
 
 		SongTerminalContentUpdate songClass = new SongTerminalContentUpdate();
 		Thread songPlayingThread = new Thread(songClass);
@@ -176,7 +206,7 @@ public class PandoraGUI{
 			}else if(tempIn.equals("s")){
 				// Stop everything here
 				queueMan.stop();
-				queueMan.playStation(PopulateTerminalStations());
+				queueMan.playStation(LoadTerminalStations());
 			}else if(tempIn.equals("h")){
 				System.out.println("p - pause\nr - resume\nn - next\ns - stations");
 			}
@@ -184,18 +214,7 @@ public class PandoraGUI{
 	
 	}
 	
-	public void PopulateGUIStations(){
-		// Get Station List
-		ArrayList<ArrayList<String>> stationList = pandoraBackEnd.getStationList();
-		
-		// Print and choose station
-		for(ArrayList<String> tempAL : stationList){
-			// stationCB.addItem(tempAL.get(0));
-			stationCB.addItem(new ComboItem(tempAL.get(0), tempAL.get(1)));
-		}
-	}
-	
-	public String PopulateTerminalStations(){
+	public String LoadTerminalStations(){
 		// Get Station List
 		ArrayList<ArrayList<String>> tempStationList = pandoraBackEnd.getStationList();
 
@@ -210,6 +229,10 @@ public class PandoraGUI{
 
 		return stationId;
 	}
+	
+	// --------------------------------------------------------------------------------------\\
+	// --------------------------------- EMBEDDED CLASSES ---------------------------------- \\
+	// --------------------------------------------------------------------------------------\\
 	
 	class SongGUIContentUpdate implements Runnable{
 		public void run(){
@@ -304,28 +327,28 @@ public class PandoraGUI{
 		private String key;
 		private String value;
 
-		public ComboItem(String key, String value)
-		{
+		public ComboItem(String key, String value){
 			this.key = key;
 			this.value = value;
 		}
 
 		@Override
-		public String toString()
-		{
+		public String toString(){
 			return key;
 		}
 
-		public String getKey()
-		{
+		public String getKey(){
 			return key;
 		}
 
-		public String getValue()
-		{
+		public String getValue(){
 			return value;
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------\\
+	// ------------------------------------ MAIN LOADER ------------------------------------ \\
+	// --------------------------------------------------------------------------------------\\
 	
 	public static void main(String args[]){
 		if(args.length == 0){
