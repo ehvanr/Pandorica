@@ -21,7 +21,7 @@ public class QueueManager{
 	// Receives Singleton Object (And creates it if it doesn't exist)
 	private MainPandora pandoraBackEnd = MainPandora.getInstance();
 	
-	// The Curent Song (Can we combine these?)
+	// The Curent Song (Can we combine these into the PandoraSong class?)
 	private PandoraSong currentSongInfo = new PandoraSong();
 	private SongPlayer liveSong;
 	private byte[] currentFile;
@@ -65,6 +65,9 @@ public class QueueManager{
 		return INSTANCE;
 	}
 	
+	/**
+	 * pause() and resume() are deprecated.  Use toggle() instead.
+	 **/
 	public void pause(){
 		synchronized(threadLock){
 			currentSongInfo.setSongStatus(PlayerStatus.PAUSED);
@@ -72,6 +75,9 @@ public class QueueManager{
 		}
 	}
 	
+	/**
+	 * pause() and resume() are deprecated.  Use toggle() instead.
+	 **/
 	public void resume(){
 		synchronized(threadLock){
 			currentSongInfo.setSongStatus(PlayerStatus.PLAYING);
@@ -227,6 +233,8 @@ public class QueueManager{
 						
 						int tempEstFileSizeKB = (time * 128) / 8;
 						
+						// Commenting out until we can incorporate a proper way to deal with the "42 second song of death"
+						
 						// if(time == 42){
 						//	System.out.print("Skipping song...");
 						//}else{
@@ -274,7 +282,7 @@ public class QueueManager{
 	}
 	
 	/**
-	 * THE FOLLOWING ARE THE THREADS FOR THE BUFFER, PLAYER, AND PROGRESS (WHICH WILL BE DEPRECATED SOON)
+	 * THE FOLLOWING ARE THE THREADS FOR THE BUFFER, PLAYER, AND PROGRESS
 	 **/
 	
 	class BufferManager implements Runnable{
@@ -374,7 +382,10 @@ public class QueueManager{
 			try{
 			
 				SimpleDateFormat formatTime = new SimpleDateFormat("mm:ss");
-				currentSongInfoLength = formatTime.format(time * 1000);
+				
+				synchronized(threadLock){
+					currentSongInfoLength = formatTime.format(time * 1000);
+				}
 				
 				for(int i = 0; i <= time; i++){
 					synchronized (threadLock) {
@@ -387,9 +398,9 @@ public class QueueManager{
 						if(currentSongInfo.getSongStatus() == PlayerStatus.FINISHED || currentSongInfo.getSongStatus() == PlayerStatus.STOPPED){
 							break;
 						}
-					}
 					
-					currentSongInfoPosition = formatTime.format(i * 1000);
+						currentSongInfoPosition = formatTime.format(i * 1000);
+					}
 					
 					try{
 						Thread.sleep(1000);

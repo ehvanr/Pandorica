@@ -28,16 +28,16 @@ public class PandoraGUI{
 	// The lock object
 	private final Object threadLock = new Object();
 
-	// Global GUI Components
-	private JComboBox<ComboItem> stationCB = new JComboBox<ComboItem>();
-	private JLabel songTitle = new JLabel();
-	private JLabel artistName = new JLabel();
-	private JLabel songProgress = new JLabel();
-	private JLabel albumArt = new JLabel();
-	private JButton pausePlayButton = new JButton("\u25BA");
+	// Global GUI Components (Should instantiate in the constructor where the gui flag is set or not... Savin that memory)
+	private JComboBox<ComboItem> stationCB;
+	private JLabel songTitle;
+	private JLabel artistName;
+	private JLabel songProgress;
+	private JLabel albumArt;
+	private JButton pausePlayButton;
 	
 	// Only created when we're using the '-nogui' flag
-	Scanner in;
+	private Scanner in;
 	
 	// --------------------------------------------------------------------------------------\\
 	// ------------------------------------ CONSTRUCTOR ------------------------------------ \\
@@ -56,7 +56,6 @@ public class PandoraGUI{
 	// --------------------------------------------------------------------------------------\\
 	
 	public void LoadPlayerGUI(){
-		
 		JFrame mainFrame = new JFrame("Pandorica");
 		mainFrame.setSize(800, 370);
 		mainFrame.setLayout(new BorderLayout());
@@ -68,6 +67,12 @@ public class PandoraGUI{
 		albumArt.setBorder(new EmptyBorder(10, 10, 10, 10));
 		
 		JButton nextButton = new JButton(">>");
+		stationCB = new JComboBox<ComboItem>();
+		songTitle = new JLabel();
+		artistName = new JLabel();
+		songProgress = new JLabel();
+		albumArt = new JLabel();
+		pausePlayButton = new JButton("\u25BA");
 		
 		pausePlayButton.addActionListener(new ActionListener(){
 			public void actionPerformed(ActionEvent ae){
