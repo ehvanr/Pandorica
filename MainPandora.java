@@ -10,15 +10,15 @@
  * http://pan-do-ra-api.wikia.com/wiki/Json/5
  **/
  
+import java.io.*;
+import java.net.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Scanner;
+import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
-import javax.crypto.Cipher;
-import java.util.ArrayList;
 import com.google.gson.*;
-import java.util.Scanner;
-import java.util.Arrays;
-import java.net.*;
-import java.io.*;
 
 public class MainPandora{
 
@@ -35,7 +35,21 @@ public class MainPandora{
 	private String userAuthToken;
 	private String urlUAT;
 	
+	private static MainPandora INSTANCE;
+	
 	Gson gson = new Gson();
+	
+	/**
+	 * Singleton Object
+	 **/
+	public static synchronized MainPandora getInstance(){
+		if(INSTANCE == null){
+			// Initiate Object
+			INSTANCE = new MainPandora();
+		}
+		
+		return INSTANCE;
+	}
 	
 	/**
 	 * This function sends an object with the appropriate actionParam to the
@@ -172,7 +186,7 @@ public class MainPandora{
 			JsonElement tempStreams = incomingObj.getAsJsonObject("result").get("items");
 
 			// Deserialization of tempStreams JsonElement - inputs them into JsonArray
-			JsonArray songListParsed = gson.fromJson(tempStreams, JsonArray.class);
+			JsonArray songListParsed = (new Gson()).fromJson(tempStreams, JsonArray.class);
 
 			ArrayList<PandoraSong> songListArray = new ArrayList<PandoraSong>();
 
@@ -403,5 +417,5 @@ public class MainPandora{
 		}
 	}
 
-	public MainPandora(){}
+	private MainPandora(){}
 }

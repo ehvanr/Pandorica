@@ -5,12 +5,12 @@
  * 2013 - 2014
  **/
 
-import java.util.ArrayList;
 import java.io.*;
 import java.net.*;
-import javazoom.jl.player.Player;
-import javazoom.jl.decoder.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import javazoom.jl.decoder.*;
+import javazoom.jl.player.Player;
 
 public class QueueManager{
 
@@ -18,14 +18,8 @@ public class QueueManager{
 	// ------------------------------------ GLOBAL VARS ------------------------------------ \\
 	// --------------------------------------------------------------------------------------\\
 	
-	public final static int NOTSTARTED = 0;
-	public final static int PLAYING = 1;
-    public final static int PAUSED = 2;
-	public final static int FINISHED = 3;
-	public final static int STOPPED = 4;
-	
 	// To access the backend, this object must be passed through in the constructor
-	MainPandora pandoraBackEnd;
+	MainPandora pandoraBackEnd = MainPandora.getInstance();
 	
 	// The object to notify threads
 	private final Object threadLock = new Object();
@@ -57,9 +51,7 @@ public class QueueManager{
 	// ------------------------------------ CONSTRUCTOR ------------------------------------ \\
 	// --------------------------------------------------------------------------------------\\
 	
-	public QueueManager(MainPandora tempPandoraBackEnd){
-		pandoraBackEnd = tempPandoraBackEnd;
-	}
+	public QueueManager(){}
 
 	// --------------------------------------------------------------------------------------\\
 	// ---------------------------------- CONTROL METHODS ---------------------------------- \\
@@ -67,14 +59,14 @@ public class QueueManager{
 	
 	public void pause(){
 		synchronized(threadLock){
-			currentSong.setSongStatus(PAUSED);
+			currentSong.setSongStatus(PlayerStatus.PAUSED);
 			liveSong.pause();
 		}
 	}
 	
 	public void resume(){
 		synchronized(threadLock){
-			currentSong.setSongStatus(PLAYING);
+			currentSong.setSongStatus(PlayerStatus.PLAYING);
 			liveSong.resume();
 			threadLock.notifyAll();
 		}
@@ -82,11 +74,11 @@ public class QueueManager{
 	
 	public void toggle(){
 		synchronized(threadLock){
-			if(currentSong.getSongStatus() == PLAYING){
-				currentSong.setSongStatus(PAUSED);
+			if(currentSong.getSongStatus() == PlayerStatus.PLAYING){
+				currentSong.setSongStatus(PlayerStatus.PAUSED);
 				liveSong.pause();
-			}else if(currentSong.getSongStatus() == PAUSED){
-				currentSong.setSongStatus(PLAYING);
+			}else if(currentSong.getSongStatus() == PlayerStatus.PAUSED){
+				currentSong.setSongStatus(PlayerStatus.PLAYING);
 				liveSong.resume();
 				threadLock.notifyAll();
 			}
@@ -95,7 +87,7 @@ public class QueueManager{
 	
 	public void nextSong(){
 		synchronized(threadLock){
-			currentSong.setSongStatus(FINISHED);
+			currentSong.setSongStatus(PlayerStatus.FINISHED);
 			liveSong.stop();
 		}
 	}
@@ -103,7 +95,7 @@ public class QueueManager{
 	public void stop(){
 		synchronized(threadLock){
 			if(liveSong != null){
-				currentSong.setSongStatus(STOPPED);
+				currentSong.setSongStatus(PlayerStatus.STOPPED);
 				liveSong.stop();
 			}
 		}
@@ -195,11 +187,11 @@ public class QueueManager{
 					String streamURL;
 					
 					synchronized(threadLock){
-						if(currentSong.getSongStatus() == STOPPED){
+						if(currentSong.getSongStatus() == PlayerStatus.STOPPED){
 							songPlaylist.removeAll(songPlaylist);
 							
 							// We set this so we no longer get stuck in this loop if we choose another station
-							currentSong.setSongStatus(FINISHED);
+							currentSong.setSongStatus(PlayerStatus.FINISHED);
 							break;
 						}
 						
@@ -246,7 +238,7 @@ public class QueueManager{
 							// If skipped previously, we need to switch from "FINISHED" to "PLAYING" before we start any threads
 							// to make sure they don't prematurely end
 							synchronized(threadLock){
-								currentSong.setSongStatus(PLAYING);
+								currentSong.setSongStatus(PlayerStatus.PLAYING);
 							}
 							
 							progressThread.start();
@@ -311,7 +303,7 @@ public class QueueManager{
 									estPercentDone = 100;
 								}
 							
-								if(currentSong.getSongStatus() == FINISHED || currentSong.getSongStatus() == STOPPED){
+								if(currentSong.getSongStatus() == PlayerStatus.FINISHED || currentSong.getSongStatus() == PlayerStatus.STOPPED){
 									break;
 								}
 								
@@ -328,7 +320,7 @@ public class QueueManager{
 						
 							// This is what determines if we are going to save the song or not (Dependent on whether the song is finished and 
 							// whether we previously set the saveToMP3 boolean value to true)
-							if(saveToMP3 && currentSong.getSongStatus() != FINISHED){
+							if(saveToMP3 && currentSong.getSongStatus() != PlayerStatus.FINISHED){
 								OutputStream writeStream = new FileOutputStream(new File(mp3DIRString + currentSong.getArtistName() + " - " + currentSong.getSongName() + ".mp3"));
 								writeStream.write(currentFile);
 								writeStream.flush();
@@ -356,7 +348,7 @@ public class QueueManager{
 			try{
 				synchronized(threadLock){
 					threadLock.wait();
-					currentSong.setSongStatus(PLAYING);
+					currentSong.setSongStatus(PlayerStatus.PLAYING);
 				}
 				
 				play();
@@ -378,13 +370,13 @@ public class QueueManager{
 				
 				for(int i = 0; i <= time; i++){
 					synchronized (threadLock) {
-						while (currentSong.getSongStatus() == PAUSED) {
+						while (currentSong.getSongStatus() == PlayerStatus.PAUSED) {
 							try {
 								threadLock.wait();
 							}catch(Exception e){}
 						}
 						
-						if(currentSong.getSongStatus() == FINISHED || currentSong.getSongStatus() == STOPPED){
+						if(currentSong.getSongStatus() == PlayerStatus.FINISHED || currentSong.getSongStatus() == PlayerStatus.STOPPED){
 							break;
 						}
 					}

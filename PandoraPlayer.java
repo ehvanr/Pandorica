@@ -7,19 +7,11 @@
  * Taken and modified from here http://stackoverflow.com/questions/12057214/jlayer-pause-and-resume-song
  **/
 
+import java.io.InputStream;
 import javazoom.jl.player.Player;
 import javazoom.jl.decoder.*;
-import java.util.ArrayList;
-import java.io.*;
-import java.nio.*;
 
 public class PandoraPlayer{
-	
-	public final static int NOTSTARTED = 0;
-	public final static int PLAYING = 1;
-    public final static int PAUSED = 2;
-	public final static int FINISHED = 3;
-	public final static int STOPPED = 4;
 	
 	// the player actually doing all the work
     private final Player player;
@@ -28,7 +20,7 @@ public class PandoraPlayer{
     private final Object playerLock = new Object();
 
     // status variable what player thread is doing/supposed to do
-    private int playerStatus = NOTSTARTED;
+    private PlayerStatus playerStatus = PlayerStatus.NOTSTARTED;
 	
 	public PandoraPlayer(final InputStream inputStream) throws JavaLayerException {
         this.player = new Player(inputStream);
@@ -50,7 +42,7 @@ public class PandoraPlayer{
                     final Thread t = new Thread(r);
                     t.setDaemon(true);
                     t.setPriority(Thread.MAX_PRIORITY);
-                    playerStatus = PLAYING;
+                    playerStatus = PlayerStatus.PLAYING;
                     t.start();
                     
 					break;
@@ -68,10 +60,10 @@ public class PandoraPlayer{
      */
     public boolean pause() {
         synchronized (playerLock) {
-            if (playerStatus == PLAYING) {
-                playerStatus = PAUSED;
+            if (playerStatus == PlayerStatus.PLAYING) {
+                playerStatus = PlayerStatus.PAUSED;
             }
-            return playerStatus == PAUSED;
+            return playerStatus == PlayerStatus.PAUSED;
         }
     }
 
@@ -80,11 +72,11 @@ public class PandoraPlayer{
      */
     public boolean resume() {
         synchronized (playerLock) {
-            if (playerStatus == PAUSED) {
-                playerStatus = PLAYING;
+            if (playerStatus == PlayerStatus.PAUSED) {
+                playerStatus = PlayerStatus.PLAYING;
                 playerLock.notifyAll();
             }
-            return playerStatus == PLAYING;
+            return playerStatus == PlayerStatus.PLAYING;
         }
     }
 
@@ -93,13 +85,13 @@ public class PandoraPlayer{
      */
     public void stop() {
         synchronized (playerLock) {
-            playerStatus = FINISHED;
+            playerStatus = PlayerStatus.FINISHED;
             playerLock.notifyAll();
         }
     }
 
     private void playInternal() {
-        while (playerStatus != FINISHED) {
+        while (playerStatus != PlayerStatus.FINISHED) {
             try {
 				// Plays one frame, breaks if last frame played
                 if (!player.play(1)) {
@@ -111,7 +103,7 @@ public class PandoraPlayer{
 			
             // check if paused or terminated
             synchronized (playerLock) {
-                while (playerStatus == PAUSED) {
+                while (playerStatus == PlayerStatus.PAUSED) {
                     try {
                         playerLock.wait();
                     } catch (final InterruptedException e) {
@@ -129,7 +121,7 @@ public class PandoraPlayer{
      */
     public void close() {
         synchronized (playerLock) {
-            playerStatus = FINISHED;
+            playerStatus = PlayerStatus.FINISHED;
         }
         try {
             player.close();

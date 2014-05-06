@@ -5,28 +5,21 @@
  * 2013 - 2014
  **/
 
-import javax.swing.*;
-import javax.swing.border.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.io.*;
-import java.net.*;
-import javax.imageio.*;
-import java.util.Scanner;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
+import java.io.Console;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Scanner;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 
 public class PandoraGUI{
-
-	public final static int NOTSTARTED = 0;
-	public final static int PLAYING = 1;
-    public final static int PAUSED = 2;
-	public final static int FINISHED = 3;
-	public final static int STOPPED = 4;
 	
-	MainPandora pandoraBackEnd = new MainPandora();
-	QueueManager queueMan = new QueueManager(pandoraBackEnd);
+	MainPandora pandoraBackEnd = MainPandora.getInstance();
+	QueueManager queueMan = new QueueManager();
 	Scanner in = new Scanner(System.in);
 	
 	PandoraSong currentSong = new PandoraSong();
@@ -224,7 +217,7 @@ public class PandoraGUI{
 				while(true){
 
 					// On first start, we wait for song to start playing
-					while(queueMan.getCurrentSong().getSongStatus() != PLAYING){						
+					while(queueMan.getCurrentSong().getSongStatus() != PlayerStatus.PLAYING){						
 						
 						// Sleep for 100ms
 						try{
@@ -270,7 +263,7 @@ public class PandoraGUI{
 				while(true){
 
 					// On first start, we wait for song to start playing
-					while(queueMan.getCurrentSong().getSongStatus() != PLAYING){						
+					while(queueMan.getCurrentSong().getSongStatus() != PlayerStatus.PLAYING){						
 						
 						// Sleep for 100ms
 						try{

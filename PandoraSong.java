@@ -6,14 +6,8 @@
  **/
 
 public class PandoraSong{
-
-	public final static int NOTSTARTED = 0;
-	public final static int PLAYING = 1;
-    public final static int PAUSED = 2;
-	public final static int FINISHED = 3;
-	public final static int STOPPED = 4;
 	
-	public int songStatus = NOTSTARTED;
+	public PlayerStatus songStatus = PlayerStatus.NOTSTARTED;
 
 	public String songAlbumName;
 	public String songAlbumArtUrl;
@@ -53,11 +47,11 @@ public class PandoraSong{
 		return songAudioUrl;
 	}
 	
-	public int getSongStatus(){
+	public PlayerStatus getSongStatus(){
 		return songStatus;
 	}
 	
-	public void setSongStatus(int VALUE){
+	public void setSongStatus(PlayerStatus VALUE){
 		songStatus = VALUE;
 	}
 	
