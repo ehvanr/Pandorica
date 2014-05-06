@@ -22,16 +22,22 @@ public class PandoraGUI{
 	private MainPandora pandoraBackEnd = MainPandora.getInstance();
 	private QueueManager queueMan = QueueManager.getInstance();
 	
-	Scanner in = new Scanner(System.in);
+	// The current songs info
+	PandoraSong currentSongInfo = new PandoraSong();
 	
-	PandoraSong currentSong = new PandoraSong();
+	// The lock object
 	private final Object threadLock = new Object();
 
-	JComboBox<ComboItem> stationCB = new JComboBox<ComboItem>();
-	JLabel songTitle = new JLabel();
-	JLabel artistName = new JLabel();
-	JLabel songProgress = new JLabel();
-	JLabel albumArt = new JLabel();
+	// Global GUI Components
+	private JComboBox<ComboItem> stationCB = new JComboBox<ComboItem>();
+	private JLabel songTitle = new JLabel();
+	private JLabel artistName = new JLabel();
+	private JLabel songProgress = new JLabel();
+	private JLabel albumArt = new JLabel();
+	private JButton pausePlayButton = new JButton("\u25BA");
+	
+	// Only created when we're using the '-nogui' flag
+	Scanner in;
 	
 	// --------------------------------------------------------------------------------------\\
 	// ------------------------------------ CONSTRUCTOR ------------------------------------ \\
@@ -54,13 +60,13 @@ public class PandoraGUI{
 		JFrame mainFrame = new JFrame("Pandorica");
 		mainFrame.setSize(800, 370);
 		mainFrame.setLayout(new BorderLayout());
+		mainFrame.setResizable(false);
 		
 		songTitle.setFont(new Font("Serif", Font.PLAIN, 24));
 		artistName.setFont(new Font("Serif", Font.BOLD, 26));
 		songProgress.setFont(new Font("Serif", Font.PLAIN, 18));
 		albumArt.setBorder(new EmptyBorder(10, 10, 10, 10));
 		
-		JButton pausePlayButton = new JButton("||");
 		JButton nextButton = new JButton(">>");
 		
 		pausePlayButton.addActionListener(new ActionListener(){
@@ -87,6 +93,11 @@ public class PandoraGUI{
 		JPanel buttonPanel = new JPanel();
 		
 		rightContent.setBorder(new EmptyBorder(30, 20, 20, 30));
+		
+		// Load default image icon for Album Art
+		ClassLoader myClassLoader = this.getClass().getClassLoader();
+		URL imgURL = myClassLoader.getResource("Images/PandoricaDummyArt.png");
+		albumArt.setIcon(new ImageIcon(imgURL));
 		
 		buttonPanel.add(pausePlayButton);
 		buttonPanel.add(nextButton);
@@ -171,7 +182,7 @@ public class PandoraGUI{
 	
 	public void LoadPasswordTerminal(){
 		
-		Scanner in = new Scanner(System.in);
+		in = new Scanner(System.in);
 		System.out.print("Email: ");
 		String username = in.nextLine();
 		Console console = System.console();
@@ -240,8 +251,7 @@ public class PandoraGUI{
 				while(true){
 
 					// On first start, we wait for song to start playing
-					while(queueMan.getCurrentSong().getSongStatus() != PlayerStatus.PLAYING){						
-						
+					while(queueMan.getCurrentSong().getSongStatus() != PlayerStatus.PLAYING){
 						// Sleep for 100ms
 						try{
 							Thread.sleep(100);
@@ -249,25 +259,32 @@ public class PandoraGUI{
 					}
 					
 					// Gather playing song
-					currentSong = queueMan.getCurrentSong();
+					currentSongInfo = queueMan.getCurrentSong();
 					
 					// Set song title & artist
-					songTitle.setText(currentSong.getSongName());
-					artistName.setText(currentSong.getArtistName());
+					songTitle.setText(currentSongInfo.getSongName());
+					artistName.setText(currentSongInfo.getArtistName());
 					
 					// Set album art
 					try{
-						URL sourceImage = new URL(currentSong.getAlbumArtUrl());
+						URL sourceImage = new URL(currentSongInfo.getAlbumArtUrl());
 						Image AAImage = ImageIO.read(sourceImage).getScaledInstance(300, 300,  java.awt.Image.SCALE_SMOOTH);  
 						albumArt.setIcon(new ImageIcon(AAImage));
 						
 					}catch(Exception e){}
 					
 					// Loop while our cached song is the same as the one in queue
-					while(currentSong.getAudioUrl().equals(queueMan.getCurrentSong().getAudioUrl())){
+					while(currentSongInfo.getAudioUrl().equals(queueMan.getCurrentSong().getAudioUrl())){
 						
 						// Set song progress
 						songProgress.setText(queueMan.getCurrentSongPosition() + " / " + queueMan.getCurrentSongLength());
+						
+						// Set pausePlayButton to the appropriate state
+						if(currentSongInfo.getSongStatus() == PlayerStatus.PAUSED){
+							pausePlayButton.setText("\u25BA");
+						}else if(currentSongInfo.getSongStatus() == PlayerStatus.PLAYING){
+							pausePlayButton.setText("||");
+						}
 						
 						// Sleep for 100ms
 						try{
@@ -295,15 +312,15 @@ public class PandoraGUI{
 					}
 					
 					// Gather playing song
-					currentSong = queueMan.getCurrentSong();
+					currentSongInfo = queueMan.getCurrentSong();
 					
 					
-					String songName = currentSong.getSongName();
-					String artistName = currentSong.getArtistName(); 
+					String songName = currentSongInfo.getSongName();
+					String artistName = currentSongInfo.getArtistName(); 
 					String currentSongLength = queueMan.getCurrentSongLength();
 					
 					// Loop while our cached song is the same as the one in queue
-					while(currentSong.getAudioUrl().equals(queueMan.getCurrentSong().getAudioUrl())){
+					while(currentSongInfo.getAudioUrl().equals(queueMan.getCurrentSong().getAudioUrl())){
 						String currentSongPosition = queueMan.getCurrentSongPosition();
 						Integer bufferPercentage = queueMan.getBufferPercentage();
 						

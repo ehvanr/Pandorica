@@ -39,6 +39,7 @@ public class QueueManager{
 	private String currentSongInfoLength;
 	private String currentSongInfoPosition;
 	
+	// The singleton object instance
 	private static QueueManager INSTANCE;
 	
 	// --------------------------------------------------------------------------------------\\

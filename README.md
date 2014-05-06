@@ -6,11 +6,11 @@ This is currently a pretty hacked up Java application.  My code is really thrown
 To compile and run on Windows:
 ------------------------------
 
-	javac -cp .;gson-2.2.3.jar;jl1.0.1.jar *.java
-	java -cp .;gson-2.2.3.jar;jl1.0.1.jar PandoraGUI
+	javac -cp .;lib/jl1.0.1.jar;lib/gson-2.2.3.jar *.java
+	java -cp .;lib/jl1.0.1.jar;lib/gson-2.2.3.jar PandoraGUI
 
 To compile and run on Unix (Mac or Linux):
 ------------------------------------------
 
-	javac -cp .:gson-2.2.3.jar:jl1.0.1.jar *.java
-	java -cp .:gson-2.2.3.jar:jl1.0.1.jar PandoraGUI
+	javac -cp .:lib/jl1.0.1.jar:lib/gson-2.2.3.jar *.java
+	java -cp .:lib/jl1.0.1.jar:lib/gson-2.2.3.jar PandoraGUI
