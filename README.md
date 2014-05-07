@@ -7,10 +7,10 @@ To compile and run on Windows:
 ------------------------------
 
 	javac -cp .;lib/jl1.0.1.jar;lib/gson-2.2.3.jar *.java
-	java -cp .;lib/jl1.0.1.jar;lib/gson-2.2.3.jar PandoricaGUI
+	java -cp .;lib/jl1.0.1.jar;lib/gson-2.2.3.jar Pandorica
 
 To compile and run on Unix (Mac or Linux):
 ------------------------------------------
 
 	javac -cp .:lib/jl1.0.1.jar:lib/gson-2.2.3.jar *.java
-	java -cp .:lib/jl1.0.1.jar:lib/gson-2.2.3.jar PandoricaGUI
+	java -cp .:lib/jl1.0.1.jar:lib/gson-2.2.3.jar Pandorica
