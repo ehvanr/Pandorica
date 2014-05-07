@@ -170,12 +170,6 @@ public class PandoricaGUI extends Application{
 		Image defaultAlbumArt = new Image(imgURL);
 		ImageView albumImage = new ImageView(defaultAlbumArt);
 		
-		/*
-		URL sourceImage = new URL(currentSongInfo.getAlbumArtUrl());
-		Image AAImage = ImageIO.read(sourceImage).getScaledInstance(300, 300,  java.awt.Image.SCALE_SMOOTH);  
-		albumArt.setIcon(new ImageIcon(AAImage));
-		*/
-		
 		GridPane songContent = new GridPane();
 		songContent.setHgap(10);
 		songContent.setVgap(10);
@@ -202,7 +196,6 @@ public class PandoricaGUI extends Application{
         pandoricaStage.setScene(new Scene(playerGrid, 800, 315));
         pandoricaStage.setResizable(false);
 		pandoricaStage.show();
-		
 		
 		Task songGUIContentUpdate = new Task<Void>(){
 			@Override

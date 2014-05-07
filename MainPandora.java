@@ -20,6 +20,11 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 import com.google.gson.*;
 
+/**
+ * This class is the "client backend" to the Pandora API. It communicates with the API
+ * to execute a variety of calls. Some of which include loging in, receiving the 
+ * station list, getting playlists with song information, etc.
+ **/
 public class MainPandora{
 
 	private static String BASE_HTTPS_URL = "https://tuner.pandora.com/services/json/?method=";
@@ -43,7 +48,10 @@ public class MainPandora{
 	private MainPandora(){}
 	
 	/**
-	 * Singleton Object
+	 * Returns the singleton MainPandora instance.  If it doesn't already exist
+	 * it creates one. 
+	 * 
+	 * @return The new or existing MainPandora instance
 	 **/
 	public static synchronized MainPandora getInstance(){
 		if(INSTANCE == null){
@@ -55,120 +63,71 @@ public class MainPandora{
 	}
 	
 	/**
-	 * This function sends an object with the appropriate actionParam to the
-	 * Pandora API.  It then returns a recieved JSONObject.
+	 * This function performs the partnerLogin as well as the userLogin 
+	 * part of the Pandora API
 	 *
-	 * @param toSend 		The object to send
-	 * @param actionParam	The actionParameter part of the Pandora API
-	 * @return receivedObj	The returned JSON object
+	 * @param	username the email of the user.
+	 * @param 	password the password of the user.
+	 * @return 	Whether we were successfully authenticated.
 	 **/
-	public static JsonObject sendObject(String toSend, String actionParam, boolean HTTPS){
+	public boolean pandoraLogin(String username, String password){
+		if(partnerLogin() && userLogin(username, password)){
+			return true;
+		}else{
+			// Shouldn't need to throw any error here because the error should have already been thrown.
+			return false;
+		}
+	}
+	
+	/**
+	 * Returns an ArrayList, each element containing an ArrayList of Strings. 
+	 * The first of which is the station name and the second is the station ID.
+	 *
+	 * @return An ArrayList of station names and their respective ID's.
+	 **/
+	public ArrayList<ArrayList<String>> getStationList(){
+		
+		// Sets JSON playlist URL
+		String stationListURLMethod = String.format("user.getStationList&auth_token=%s&partner_id=%d&user_id=%s", urlUAT, partnerID, userId);
 
-		String inputLine = null;
+		JsonObject getStationListJSON = new JsonObject();
+		getStationListJSON.addProperty("userAuthToken", userAuthToken);
+		getStationListJSON.addProperty("syncTime", getSyncTime());
 
-		try{
+		// Will not worth with HTTPS, set to false
+		JsonObject incomingObj = sendObject(encrypt(getStationListJSON.toString()), stationListURLMethod, false);
+		
+		if(incomingObj.get("stat").getAsString().equals("ok")){
+			JsonArray tempStations = incomingObj.getAsJsonObject("result").getAsJsonArray("stations");
 			
-			URL url = null;
-			
-			if(HTTPS){
-				url = new URL(BASE_HTTPS_URL + actionParam);
-			}else{
-				url = new URL(BASE_HTTP_URL + actionParam);
+			// Creates ArratList of each pandoraStation
+			ArrayList<ArrayList<String>> pandoraStations = new ArrayList<ArrayList<String>>();
+
+			// Takes each element from JsonArray, get it as a JsonObject, and inputs it into pandoraStation JsonObject ArrayList
+			for(JsonElement element : tempStations){
+				ArrayList<String> tempObj = new ArrayList<String>();
+				
+				tempObj.add(element.getAsJsonObject().get("stationName").getAsString());
+				tempObj.add(element.getAsJsonObject().get("stationToken").getAsString());
+				pandoraStations.add(tempObj);
 			}
 			
-			HttpURLConnection hc = (HttpURLConnection) url.openConnection();
-
-			// Set all HttpURLConnection settings
-			hc.setRequestMethod("POST");
-			hc.setDoOutput(true);
-			hc.setDoInput(true);
-			hc.setRequestProperty("Content-Type", "text/plain");
-			hc.connect();
-
-			// The output stream
-			DataOutputStream out = new DataOutputStream(hc.getOutputStream());
-			
-			// Sends out the JSON request
-			out.writeBytes(toSend);
-			out.flush();
-			out.close();
-
-			// Receives the response
-			BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
-			inputLine = br.readLine();
-			br.close();
-
-		}catch(MalformedURLException murle){
-			System.out.println("MalformedURLException - This shouldn't happen as the URL's are embedded");
-		}catch(IOException ioe){
-			System.out.println("IOException");
+			return pandoraStations;
+		}else{
+			// Didn't get expected response. Thow error?
+			String errorCode = incomingObj.get("code").getAsString();
+			System.out.println("getStationList API call crashed with error: " + errorCode);
+			System.exit(0);
+			return null;
 		}
-
-		// Parses the response as a JsonObject
-		JsonParser parser = new JsonParser();
-		JsonObject receivedObj = (JsonObject)parser.parse(inputLine);
-
-		return receivedObj;
 	}
-
+	
 	/**
-	 * Takes in an encrypted string and outputs the decrypted string.
-	 *
-	 * @param encrypted		The encrypted string
-	 * @return decrypted	The decrypted string
-	 **/
-	private String decrypt(String encrypted){
-
-		byte[] decryptedBytes = null;
-
-		try{
-			byte[] encryptedBytes = DatatypeConverter.parseHexBinary(encrypted);
-			
-			Cipher blowfishECB = Cipher.getInstance("Blowfish/ECB/PKCS5Padding");
-			SecretKeySpec blowfishKey = new SecretKeySpec("R=U!LH$O2B#".getBytes(), "Blowfish");
-			blowfishECB.init(Cipher.DECRYPT_MODE, blowfishKey);
-			decryptedBytes = blowfishECB.doFinal(encryptedBytes);
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-
-		// First 4 bytes are garbage according to specification (deletes first 4 bytes)
-		byte[] trimGarbage = Arrays.copyOfRange(decryptedBytes, 4, decryptedBytes.length);
-
-		String decrypted = new String(trimGarbage);
-		return decrypted;
-	}
-
-	/**
-	 * Takes in a decrypted string and outputs the encrypted string.
-	 *
-	 * @param decrypted		The decrypted string
-	 * @return encrypted	The encrypted string
-	 **/
-	private String encrypt(String decrypted){
-
-		byte[] encryptedBytes = null;
-
-		try{
-			Cipher blowfishECB = Cipher.getInstance("Blowfish/ECB/PKCS5Padding");
-			SecretKeySpec blowfishKey = new SecretKeySpec("6#26FRL$ZWD".getBytes(), "Blowfish");
-			blowfishECB.init(Cipher.ENCRYPT_MODE, blowfishKey);
-			encryptedBytes = blowfishECB.doFinal(decrypted.getBytes());
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-		
-		// It will fail if in uppercase -__-
-		String encrypted = DatatypeConverter.printHexBinary(encryptedBytes).toLowerCase();
-		return encrypted;
-	}
-
-	/**
-	 * This will receive and return all songs in a station that the  
-	 * user has saved in their Pandora account.
+	 * This will receive and return all songs in a station that the user has 
+	 * saved in their Pandora account.
 	 * 
-	 * @param stationToken		The station that we want to get a playlist for.
-	 * @return songListArray	The first three songs in the specified station.
+	 * @param stationToken		the station that we want to get a playlist for.
+	 * @return 					The first three songs in the specified station.
 	 **/
 	public ArrayList<PandoraSong> getPlaylist(String stationToken){
 		
@@ -220,94 +179,138 @@ public class MainPandora{
 			return null;
 		}
 	}
+		
+	/**
+	 * This function sends an object with the appropriate actionParam to the
+	 * Pandora API.  It then returns a recieved JSONObject.
+	 *
+	 * @param toSend 		the object to send.
+	 * @param actionParam	the actionParameter part of the Pandora API.
+	 * @return 				The returned JsonObject.
+	 **/
+	private static JsonObject sendObject(String toSend, String actionParam, boolean HTTPS){
+
+		String inputLine = null;
+
+		try{
+			
+			URL url = null;
+			
+			if(HTTPS){
+				url = new URL(BASE_HTTPS_URL + actionParam);
+			}else{
+				url = new URL(BASE_HTTP_URL + actionParam);
+			}
+			
+			HttpURLConnection hc = (HttpURLConnection) url.openConnection();
+
+			// Set all HttpURLConnection settings
+			hc.setRequestMethod("POST");
+			hc.setDoOutput(true);
+			hc.setDoInput(true);
+			hc.setRequestProperty("Content-Type", "text/plain");
+			hc.connect();
+
+			// The output stream
+			DataOutputStream out = new DataOutputStream(hc.getOutputStream());
+			
+			// Sends out the JSON request
+			out.writeBytes(toSend);
+			out.flush();
+			out.close();
+
+			// Receives the response
+			BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
+			inputLine = br.readLine();
+			br.close();
+
+		}catch(MalformedURLException murle){
+			System.out.println("MalformedURLException - This shouldn't happen as the URL's are embedded");
+		}catch(IOException ioe){
+			System.out.println("IOException");
+		}
+
+		// Parses the response as a JsonObject
+		JsonParser parser = new JsonParser();
+		JsonObject receivedObj = (JsonObject)parser.parse(inputLine);
+
+		return receivedObj;
+	}
 
 	/**
-	 * This function prints the stations to the console. 
+	 * Takes in an encrypted string and outputs the decrypted string.
 	 *
-	 * @param pandoraStations	The stations to print
+	 * @param encrypted		the encrypted string.
+	 * @return 				The decrypted string.
 	 **/
-	public void listStations(ArrayList<JsonObject> pandoraStations){
-	
-		System.out.println("\nStation List: \n");
+	private String decrypt(String encrypted){
 
-		for(int i = 0; i < pandoraStations.size(); i++){
-			JsonObject tempObj = pandoraStations.get(i);
-			System.out.println("(" + (i + 1) + ") " + tempObj.get("stationName").getAsString());
+		byte[] decryptedBytes = null;
+
+		try{
+			byte[] encryptedBytes = DatatypeConverter.parseHexBinary(encrypted);
+			
+			Cipher blowfishECB = Cipher.getInstance("Blowfish/ECB/PKCS5Padding");
+			SecretKeySpec blowfishKey = new SecretKeySpec("R=U!LH$O2B#".getBytes(), "Blowfish");
+			blowfishECB.init(Cipher.DECRYPT_MODE, blowfishKey);
+			decryptedBytes = blowfishECB.doFinal(encryptedBytes);
+		}catch(Exception e){
+			e.printStackTrace();
 		}
 
-		Scanner in = new Scanner(System.in);
-		System.out.print("\nPlease enter a station: ");
-		int selection = in.nextInt() - 1;
-		System.out.println("\nYou Selected: " + pandoraStations.get(selection).get("stationName").getAsString() + " (" + pandoraStations.get(selection).get("stationId").getAsString() + ")\n");
+		// First 4 bytes are garbage according to specification (deletes first 4 bytes)
+		byte[] trimGarbage = Arrays.copyOfRange(decryptedBytes, 4, decryptedBytes.length);
 
-		String tempStationToken = pandoraStations.get(selection).get("stationToken").getAsString();
+		String decrypted = new String(trimGarbage);
+		return decrypted;
+	}
 
-		// This will continuously loop to get more songs (Each playlist call only returns four songs, once done looping 4, we loop here to continue)
-		while(true){
-			getPlaylist(tempStationToken);
+	/**
+	 * Takes in a decrypted string and outputs the encrypted string.
+	 *
+	 * @param decrypted		the decrypted string.
+	 * @return 				The encrypted string.
+	 **/
+	private String encrypt(String decrypted){
+
+		byte[] encryptedBytes = null;
+
+		try{
+			Cipher blowfishECB = Cipher.getInstance("Blowfish/ECB/PKCS5Padding");
+			SecretKeySpec blowfishKey = new SecretKeySpec("6#26FRL$ZWD".getBytes(), "Blowfish");
+			blowfishECB.init(Cipher.ENCRYPT_MODE, blowfishKey);
+			encryptedBytes = blowfishECB.doFinal(decrypted.getBytes());
+		}catch(Exception e){
+			e.printStackTrace();
 		}
+		
+		// It will fail if in uppercase -__-
+		String encrypted = DatatypeConverter.printHexBinary(encryptedBytes).toLowerCase();
+		return encrypted;
 	}
 
 	/**
 	 * This calculates syncTime (Required for all JSON requests to the server)
 	 *
-	 * @return currentSyncTime	The calculated current SyncTime vs the saved initial SyncTime
+	 * @return The calculated current SyncTime vs the saved initial SyncTime.
 	 **/
-	public long getSyncTime(){
+	private long getSyncTime(){
 		long currentSyncTime = syncTime + ((System.currentTimeMillis() / 1000) - clientStartTime);
 		return currentSyncTime;
 	}
 	
-	public ArrayList<ArrayList<String>> getStationList(){
-		
-		// Sets JSON playlist URL
-		String stationListURLMethod = String.format("user.getStationList&auth_token=%s&partner_id=%d&user_id=%s", urlUAT, partnerID, userId);
-
-		JsonObject getStationListJSON = new JsonObject();
-		getStationListJSON.addProperty("userAuthToken", userAuthToken);
-		getStationListJSON.addProperty("syncTime", getSyncTime());
-
-		// Will not worth with HTTPS, set to false
-		JsonObject incomingObj = sendObject(encrypt(getStationListJSON.toString()), stationListURLMethod, false);
-		
-		if(incomingObj.get("stat").getAsString().equals("ok")){
-			JsonArray tempStations = incomingObj.getAsJsonObject("result").getAsJsonArray("stations");
-			
-			// Creates ArratList of each pandoraStation
-			ArrayList<ArrayList<String>> pandoraStations = new ArrayList<ArrayList<String>>();
-
-			// Takes each element from JsonArray, get it as a JsonObject, and inputs it into pandoraStation JsonObject ArrayList
-			for(JsonElement element : tempStations){
-				ArrayList<String> tempObj = new ArrayList<String>();
-				
-				tempObj.add(element.getAsJsonObject().get("stationName").getAsString());
-				tempObj.add(element.getAsJsonObject().get("stationToken").getAsString());
-				pandoraStations.add(tempObj);
-			}
-			
-			return pandoraStations;
-		}else{
-			// Didn't get expected response. Thow error?
-			String errorCode = incomingObj.get("code").getAsString();
-			System.out.println("getStationList API call crashed with error: " + errorCode);
-			System.exit(0);
-			return null;
-		}
-	}
-	
 	/**
-	 * This function performs the userLogin, immediately after the partnerLogin.
+	 * This function performs the userLogin which is run after the partnerLogin. It also
+	 * sets global vars userAuthToken, urlUAT, userId.  All of which are used by later 
+	 * API calls.
 	 *
-	 * Sets global vars userAuthToken, urlUAT, userId
-	 *
-	 * @param username			The users email
-	 * @param password			The users password
-	 * @return pandoraStation	An ArrayList of the users Pandora Stations (Or null if error)
+	 * @param username			the users email
+	 * @param password			the users password
+	 * @return 					An ArrayList of the users Pandora Stations (Or null if error)
 	 **/
 	private boolean userLogin(String username, String password){
 
 		// Commented out JSON elements are not needed for implementation... yet
-	
 		String loginURLMethod = String.format("auth.userLogin&auth_token=%s&partner_id=%d", urlPAT, partnerID);
 
 		JsonObject userLoginJSON = new JsonObject();
@@ -361,11 +364,11 @@ public class MainPandora{
 	
 	/**
 	 * This is the partnerLogin portion of the authentication.  It must be 
-	 * performed prior to user authentication.
-	 *
-	 * Sets global vars clientStartTime, partnerID, and syncTime
+	 * performed prior to user authentication. We're authenticating as an
+	 * Android device here.  This method sets global vars clientStartTime, 
+	 * partnerID, and syncTime.  All of which are used by later API calls.
 	 **/ 
-	public boolean partnerLogin(){
+	private boolean partnerLogin(){
 
 		// Gets current system time for sync (difference between this and syncTime)
 		clientStartTime = System.currentTimeMillis() / 1000L;
@@ -400,22 +403,6 @@ public class MainPandora{
 			String errorCode = incomingObj.get("code").getAsString();
 			System.out.println("partnerLogin API call crashed with error: " + errorCode);
 			System.exit(0);
-			return false;
-		}
-	}
-	
-	/**
-	 * This function performs the partnerLogin as well as the userLogin 
-	 * part of the Pandora API
-	 *
-	 * @param username The email of the user
-	 * @param password The password of the user
-	 **/
-	public boolean pandoraLogin(String username, String password){
-		if(partnerLogin() && userLogin(username, password)){
-			return true;
-		}else{
-			// Shouldn't need to throw any error here because the error should have already been thrown.
 			return false;
 		}
 	}

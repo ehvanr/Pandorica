@@ -14,6 +14,10 @@ import java.io.InputStream;
 import javazoom.jl.player.Player;
 import javazoom.jl.decoder.*;
 
+/**
+ * This class is the actual player that incorporates the pause feature of the javazoom player. 
+ * It is modified from here: http://stackoverflow.com/questions/12057214/jlayer-pause-and-resume-song
+ **/
 public class PandoraPlayer{
 	
 	// the player actually doing all the work
@@ -30,9 +34,9 @@ public class PandoraPlayer{
     }
 
     /**
-     * Starts playback (resumes if paused)
+     * This starts playback of the current song, or resumes if paused. 
      */
-    public void play() throws JavaLayerException {
+    public void play(){
         synchronized (playerLock) {
             switch (playerStatus) {
                 case NOTSTARTED:
@@ -59,19 +63,24 @@ public class PandoraPlayer{
     }
 
     /**
-     * Pauses playback. Returns true if new state is PAUSED.
+     * This pauses playback and returns true if new state is PlayerStatus.PAUSED.
+	 *
+	 * @return isPaused whether the current song is now paused.
      */
     public boolean pause() {
         synchronized (playerLock) {
             if (playerStatus == PlayerStatus.PLAYING) {
                 playerStatus = PlayerStatus.PAUSED;
             }
-            return playerStatus == PlayerStatus.PAUSED;
+			boolean isPaused = playerStatus == PlayerStatus.PAUSED;
+            return isPaused;
         }
     }
 
     /**
-     * Resumes playback. Returns true if the new state is PLAYING.
+     * This resumes playback and returns true if the new state is PlayerStatus.PLAYING.
+	 *
+	 * @return isPlaying whether the current song is not playing.
      */
     public boolean resume() {
         synchronized (playerLock) {
@@ -79,12 +88,14 @@ public class PandoraPlayer{
                 playerStatus = PlayerStatus.PLAYING;
                 playerLock.notifyAll();
             }
-            return playerStatus == PlayerStatus.PLAYING;
+			
+			boolean isPlaying = playerStatus == PlayerStatus.PLAYING;
+            return isPlaying;
         }
     }
 
     /**
-     * Stops playback. If not playing, does nothing
+     * This stops playback. If we're not playing anything, it does nothing
      */
     public void stop() {
         synchronized (playerLock) {
@@ -93,6 +104,10 @@ public class PandoraPlayer{
         }
     }
 
+	/**
+	 * This plays the song internally frame by frame.  It will break through the
+	 * loop when either the song is finished or if we play the last frame.
+	 **/
     private void playInternal() {
         while (playerStatus != PlayerStatus.FINISHED) {
             try {
@@ -120,15 +135,16 @@ public class PandoraPlayer{
     }
 
     /**
-     * Closes the player, regardless of current state.
+     * This closes the player regardless of current state.
      */
     public void close() {
-        synchronized (playerLock) {
+        synchronized(playerLock){
             playerStatus = PlayerStatus.FINISHED;
         }
-        try {
+		
+        try{
             player.close();
-        } catch (final Exception e) {
+        }catch (final Exception e){
             // ignore, we are terminating anyway
         }
     }

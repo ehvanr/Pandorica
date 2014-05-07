@@ -12,6 +12,11 @@ import java.util.ArrayList;
 import javazoom.jl.decoder.*;
 import javazoom.jl.player.Player;
 
+/**
+ * This class contains the meat behind playing and queuing songs.  It provides the
+ * ability to manipulate the play status of the current song, change the currently
+ * playing station as well as receive current song information.
+ **/
 public class QueueManager{
 
 	// --------------------------------------------------------------------------------------\\
@@ -54,7 +59,10 @@ public class QueueManager{
 	// --------------------------------------------------------------------------------------\\
 	
 	/**
-	 * Singleton Object
+	 * Returns the singleton QueueManager instance.  If it doesn't already exist
+	 * it creates one. 
+	 * 
+	 * @return The new or existing QueueManager instance
 	 **/
 	public static synchronized QueueManager getInstance(){
 		if(INSTANCE == null){
@@ -66,7 +74,8 @@ public class QueueManager{
 	}
 	
 	/**
-	 * pause() and resume() are deprecated.  Use toggle() instead.
+	 * Pauses the current song.  This feature is deprecated and shouldn't be used 
+	 * if possible. Use toggle() instead.
 	 **/
 	public void pause(){
 		synchronized(threadLock){
@@ -76,7 +85,8 @@ public class QueueManager{
 	}
 	
 	/**
-	 * pause() and resume() are deprecated.  Use toggle() instead.
+	 * Resumes the current song.  This feature is deprecated and shouldn't be used 
+	 * if possible. Use toggle() instead.
 	 **/
 	public void resume(){
 		synchronized(threadLock){
@@ -86,6 +96,11 @@ public class QueueManager{
 		}
 	}
 	
+	/**
+	 * Toggles the current song.  If the current song is playing, it pauses it.  
+	 * If it's paused it resumes it.  It does nothing if the current song isn't
+	 * either.
+	 **/
 	public void toggle(){
 		synchronized(threadLock){
 			if(currentSongInfo.getSongStatus() == PlayerStatus.PLAYING){
@@ -99,6 +114,9 @@ public class QueueManager{
 		}
 	}
 	
+	/**
+	 * Skips the current song and procedes to the next one in queue.
+	 **/
 	public void nextSong(){
 		synchronized(threadLock){
 			currentSongInfo.setSongStatus(PlayerStatus.FINISHED);
@@ -106,6 +124,11 @@ public class QueueManager{
 		}
 	}
 	
+	/**
+	 * This completely stops the player and ends the ThreadedQueue thread.
+	 * Once executed, nothing should be playing or paused and you can start 
+	 * another station if you wish. 
+	 **/
 	public void stop(){
 		synchronized(threadLock){
 			if(liveSong != null){
@@ -116,14 +139,23 @@ public class QueueManager{
 	}
 	
 	/**
-	 * This method will execute the ThreadedQueue with the stationId param.
+	 * Starts a station with the tempStationId parameter.  The player will
+	 * continue to play that station unless stopped by the stop() method. 
+	 * 
+	 * @param stationId the station ID to play
 	 **/
-	public void playStation(String tempStationId){
-		ThreadedQueue playQueue = new ThreadedQueue(tempStationId);
-		playQueue.start();
+	public void playStation(String stationId){
+		ThreadedQueue songQueue = new ThreadedQueue(stationId);
+		Thread queueThread = new Thread(songQueue);
+		queueThread.start();
 	}
 	
-	// This should be set in a setting.  
+	/**
+	 * If set true, the player will save the songs as MP3's.  Otherwise it
+	 * wont. 
+	 *
+	 * @param value whether to save the songs as MP3's
+	 **/
 	public void saveAsMP3(boolean value){
 		saveToMP3 = value;
 		
@@ -141,24 +173,47 @@ public class QueueManager{
 	// ---------------------------------- ACCESSOR METHODS ----------------------------------\\
 	// --------------------------------------------------------------------------------------\\
 	
+	/**
+	 * Returns the total estimated buffer percentage of the current song.  This will 
+	 * probably be off +/- 1-3%;
+	 *
+	 * @return The total estimated buffer amount
+	 **/
 	public int getBufferPercentage(){
 		synchronized(threadLock){
 			return estPercentDone;
 		}
 	}
 	
+	/**
+	 * Returns the current songs length in mm:ss
+	 *
+	 * @return The current songs parsed length
+	 **/
 	public String getCurrentSongLength(){
 		synchronized(threadLock){
 			return currentSongInfoLength;
 		}
 	}
 	
+	/**
+	 * Returns the current songs position in mm:ss
+	 *
+	 * @return The current songs parsed position
+	 **/
 	public String getCurrentSongPosition(){
 		synchronized(threadLock){
 			return currentSongInfoPosition;
 		}
 	}
 	
+	/**
+	 * Returns the current songs PandoraSong object. This object allows you 
+	 * to access information about the song such as song name, artist name,
+	 * etc.
+	 *
+	 * @return The current songs PandoraSong object
+	 **/
 	public PandoraSong getCurrentSong(){
 		synchronized(threadLock){
 			return currentSongInfo;
@@ -171,10 +226,11 @@ public class QueueManager{
 	
 	/**
 	 * This class will infinitely call and loop through stationId songs.  
-	 * It is only broken when the stop() method is called which sets
-	 * playerStatus = STOPPED.
+	 * It only stops when the stop() method is called which sets 
+	 * playerStatus = PlayerStatus.STOPPED where it breaks through the 
+	 * while(true) loop and the thread naturally ends.
 	 **/
-	class ThreadedQueue extends Thread{
+	private class ThreadedQueue implements Runnable{
 		ArrayList<PandoraSong> songPlaylist = new ArrayList<PandoraSong>();
 		String stationId;
 		
@@ -282,10 +338,10 @@ public class QueueManager{
 	}
 	
 	/**
-	 * THE FOLLOWING ARE THE THREADS FOR THE BUFFER, PLAYER, AND PROGRESS
+	 * This class will buffer the current song in memory, estimate the current 
+	 * buffer percentage, and save the file to MP3 (if set).
 	 **/
-	
-	class BufferManager implements Runnable{
+	private class BufferManager implements Runnable{
 		
 		int estFileSizeKB;
 		InputStream tempIS;
@@ -353,7 +409,11 @@ public class QueueManager{
 		}
 	}
 	
-	class SongPlayer extends PandoraPlayer implements Runnable{
+	/**
+	 * This class plays the ByteArrayInputStream (stream generated from the buffered song). 
+	 **/
+	private class SongPlayer extends PandoraPlayer implements Runnable{
+		
 		
 		public SongPlayer(InputStream inputStream) throws JavaLayerException{
 			super(inputStream);
@@ -375,7 +435,11 @@ public class QueueManager{
 		}
 	}
 	
-	class ProgressManager implements Runnable{
+	/**
+	 * This class updates the main class with the current songs length, as well as updates
+	 * the length progress of the song every second.
+	 **/
+	private class ProgressManager implements Runnable{
 		
 		public void run(){
 			
@@ -408,7 +472,6 @@ public class QueueManager{
 
 				}
 			}catch(Exception e){}
-			
 		}
 	}
 	
