@@ -98,7 +98,7 @@ public class PandoricaGUI extends Application{
 		loginGrid.add(loginButton, 3, 3);
 		loginGrid.add(cancelButton, 2, 3);
 		
-        pandoricaStage.setScene(new Scene(loginGrid, 800, 370));
+        pandoricaStage.setScene(new Scene(loginGrid, 800, 315));
         pandoricaStage.show();
 	}
 	
