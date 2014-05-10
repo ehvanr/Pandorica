@@ -40,6 +40,10 @@ public class MainPandora{
 	private String userAuthToken;
 	private String urlUAT;
 	
+	// Cache credentials so it can autologin on timeout
+	private String cachedPassword;
+	private String cachedEmail;
+	
 	private static MainPandora INSTANCE;
 	
 	Gson gson = new Gson();
@@ -72,6 +76,8 @@ public class MainPandora{
 	 **/
 	public boolean pandoraLogin(String username, String password){
 		if(partnerLogin() && userLogin(username, password)){
+			cachedPassword = password;
+			cachedEmail = username;
 			return true;
 		}else{
 			// Shouldn't need to throw any error here because the error should have already been thrown.
@@ -172,7 +178,17 @@ public class MainPandora{
 			}
 			
 			return songListArray;
+		}else if(incomingObj.get("code").getAsString().equals("1001")){
+			// Reauthenticate (This error is called when the users token expires)
+			if(pandoraLogin(cachedEmail, cachedPassword)){
+				return getPlaylist(stationToken);
+			}else{
+				// Throw an exception here saying we couldn't reauthenticate with the same credentials
+				System.exit(0);
+				return null;
+			}
 		}else{
+			// Throw an exception here
 			String errorCode = incomingObj.get("code").getAsString();
 			System.out.println("getPlaylist API call crashed with error: " + errorCode);
 			System.exit(0);
