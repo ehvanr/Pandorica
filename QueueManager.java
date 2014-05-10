@@ -32,6 +32,7 @@ public class QueueManager{
 	private byte[] currentFile;
 	
 	private final Object threadLock = new Object();
+	private final Object playLock = new Object();
 	
 	// On a per-object level?
 	private boolean saveToMP3 = false;
@@ -43,6 +44,7 @@ public class QueueManager{
 	private int time;
 	private String currentSongInfoLength;
 	private String currentSongInfoPosition;
+	
 	
 	// The singleton object instance
 	private static QueueManager INSTANCE;
@@ -145,9 +147,11 @@ public class QueueManager{
 	 * @param stationId the station ID to play
 	 **/
 	public void playStation(String stationId){
-		ThreadedQueue songQueue = new ThreadedQueue(stationId);
-		Thread queueThread = new Thread(songQueue);
-		queueThread.start();
+		synchronized(playLock){
+			ThreadedQueue songQueue = new ThreadedQueue(stationId);
+			Thread queueThread = new Thread(songQueue);
+			queueThread.start();
+		}
 	}
 	
 	/**
@@ -239,101 +243,104 @@ public class QueueManager{
 		}
 	
 		public void run(){
-			
-			while(true){
-			
-				// If queue is less than 2
-				if(songPlaylist.size() < 2){
-					
-					// Request new songs for current stationId
-					ArrayList<PandoraSong> tempPlaylist = pandoraBackEnd.getPlaylist(stationId);
-					
-					// Appends those songs on the playlist queue
-					for(PandoraSong tempSong : tempPlaylist){
-						songPlaylist.add(tempSong);
-					}
-				}else{
-					
-					String streamURL;
-					
-					synchronized(threadLock){
-						if(currentSongInfo.getSongStatus() == PlayerStatus.STOPPED){
-							songPlaylist.removeAll(songPlaylist);
-							
-							// We set this so we no longer get stuck in this loop if we choose another station
-							currentSongInfo.setSongStatus(PlayerStatus.FINISHED);
-							break;
-						}
-						
-						currentSongInfo = null;
-						currentSongInfo = songPlaylist.get(0);
-					
-						streamURL = currentSongInfo.getAudioUrl();
-					}
-					
-					// Play file
-					try{
-						URL url = new URL(streamURL);
-						HttpURLConnection urlConnect = (HttpURLConnection)url.openConnection();
-						int size = urlConnect.getContentLength();
-						urlConnect.disconnect();
-
-						InputStream is = url.openStream();
-						
-						Bitstream stream = new Bitstream(is);
-						
-						Header header = stream.readFrame();
-						stream.unreadFrame();
-						
-						time = (int)(header.total_ms(size) / 1000);
-						
-						int tempEstFileSizeKB = (time * 128) / 8;
-						
-						// Commenting out until we can incorporate a proper way to deal with the "42 second song of death"
-						
-						// if(time == 42){
-						//	System.out.print("Skipping song...");
-						//}else{
-
-							currentFile = new byte[size];
-							
-							ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
+			synchronized(playLock){
+				while(true){
 				
-							BufferManager liveBuffer = new BufferManager(is, tempEstFileSizeKB); 
-							ProgressManager liveProgress = new ProgressManager();
-							liveSong = new SongPlayer(readFromArray);
-							
-							Thread bufferThread = new Thread(liveBuffer);
-							Thread progressThread = new Thread(liveProgress);
-							Thread songThread = new Thread(liveSong);
-							
-							// If skipped previously, we need to switch from "FINISHED" to "PLAYING" before we start any threads
-							// to make sure they don't prematurely end
-							synchronized(threadLock){
-								currentSongInfo.setSongStatus(PlayerStatus.PLAYING);
+					// If queue is less than 2
+					if(songPlaylist.size() < 2){
+						
+						// Request new songs for current stationId
+						ArrayList<PandoraSong> tempPlaylist = pandoraBackEnd.getPlaylist(stationId);
+						
+						// Appends those songs on the playlist queue
+						for(PandoraSong tempSong : tempPlaylist){
+							songPlaylist.add(tempSong);
+						}
+					}else{
+						
+						String streamURL;
+						
+						synchronized(threadLock){
+							if(currentSongInfo.getSongStatus() == PlayerStatus.STOPPED){
+								songPlaylist.removeAll(songPlaylist);
+								
+								// We set this so we no longer get stuck in this loop if we choose another station
+								currentSongInfo.setSongStatus(PlayerStatus.FINISHED);
+								break;
 							}
 							
-							progressThread.start();
-							songThread.start();
-							bufferThread.start();
+							currentSongInfo = null;
+							currentSongInfo = songPlaylist.get(0);
+						
+							streamURL = currentSongInfo.getAudioUrl();
+						}
+						
+						// Play file
+						try{
+							URL url = new URL(streamURL);
+							HttpURLConnection urlConnect = (HttpURLConnection)url.openConnection();
+							int size = urlConnect.getContentLength();
+							urlConnect.disconnect();
 
-							bufferThread.join();
-							progressThread.join();
-							songThread.join();
+							InputStream is = url.openStream();
 							
-							currentFile = null;
-							System.gc();
-						//}
-						
-						stream.close();
-						is.close();
-						
-					}catch(Exception e){
-						e.printStackTrace();
+							Bitstream stream = new Bitstream(is);
+							
+							Header header = stream.readFrame();
+							stream.unreadFrame();
+							
+							time = (int)(header.total_ms(size) / 1000);
+							
+							int tempEstFileSizeKB = (time * 128) / 8;
+							
+							// Commenting out until we can incorporate a proper way to deal with the "42 second song of death"
+							
+							// if(time == 42){
+							//	System.out.print("Skipping song...");
+							//}else{
+
+								currentFile = new byte[size];
+								
+								ByteArrayInputStream readFromArray = new ByteArrayInputStream(currentFile);
+					
+								BufferManager liveBuffer = new BufferManager(is, tempEstFileSizeKB); 
+								ProgressManager liveProgress = new ProgressManager();
+								liveSong = new SongPlayer(readFromArray);
+								
+								Thread bufferThread = new Thread(liveBuffer);
+								Thread progressThread = new Thread(liveProgress);
+								Thread songThread = new Thread(liveSong);
+								
+								// If skipped previously, we need to switch from "FINISHED" to "PLAYING" before we start any threads
+								// to make sure they don't prematurely end
+								synchronized(threadLock){
+									currentSongInfo.setSongStatus(PlayerStatus.PLAYING);
+								}
+								
+								progressThread.start();
+								songThread.start();
+								bufferThread.start();
+
+								bufferThread.join();
+								progressThread.join();
+								songThread.join();
+								
+								currentFile = null;
+								System.gc();
+							//}
+							
+							stream.close();
+							is.close();
+							
+						}catch(Exception e){
+							e.printStackTrace();
+						}
+						songPlaylist.remove(0);
 					}
-					songPlaylist.remove(0);
 				}
 			}
+			
+			songPlaylist.removeAll(songPlaylist);
 		}
 	}
 	
