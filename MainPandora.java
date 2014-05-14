@@ -12,6 +12,7 @@
  
 import java.io.*;
 import java.net.*;
+import javax.net.ssl.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -209,36 +210,58 @@ public class MainPandora{
 		String inputLine = null;
 
 		try{
-			
-			URL url = null;
-			
 			if(HTTPS){
-				url = new URL(BASE_HTTPS_URL + actionParam);
+				URL url = new URL(BASE_HTTPS_URL + actionParam);
+				HttpsURLConnection hc = (HttpsURLConnection) url.openConnection();
+
+				// Set all HttpURLConnection settings
+				hc.setRequestMethod("POST");
+				hc.setDoOutput(true);
+				hc.setDoInput(true);
+				hc.setRequestProperty("Content-Type", "text/plain");
+				hc.connect();
+
+				
+				// The output stream
+				DataOutputStream out = new DataOutputStream(hc.getOutputStream());
+				
+				// Sends out the JSON request
+				out.writeBytes(toSend);
+				out.flush();
+				out.close();
+
+				// Receives the response
+				BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
+				
+				inputLine = br.readLine();
+				br.close();
 			}else{
-				url = new URL(BASE_HTTP_URL + actionParam);
+				URL url = new URL(BASE_HTTP_URL + actionParam);
+				HttpURLConnection hc = (HttpURLConnection) url.openConnection();
+
+				// Set all HttpURLConnection settings
+				hc.setRequestMethod("POST");
+				hc.setDoOutput(true);
+				hc.setDoInput(true);
+				hc.setRequestProperty("Content-Type", "text/plain");
+				hc.connect();
+				
+				// The output stream
+				DataOutputStream out = new DataOutputStream(hc.getOutputStream());
+								
+				// Sends out the JSON request
+				out.writeBytes(toSend);
+				out.flush();
+				out.close();
+
+				// Receives the response
+				BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
+				
+				inputLine = br.readLine();
+				br.close();
 			}
 			
-			HttpURLConnection hc = (HttpURLConnection) url.openConnection();
 
-			// Set all HttpURLConnection settings
-			hc.setRequestMethod("POST");
-			hc.setDoOutput(true);
-			hc.setDoInput(true);
-			hc.setRequestProperty("Content-Type", "text/plain");
-			hc.connect();
-
-			// The output stream
-			DataOutputStream out = new DataOutputStream(hc.getOutputStream());
-			
-			// Sends out the JSON request
-			out.writeBytes(toSend);
-			out.flush();
-			out.close();
-
-			// Receives the response
-			BufferedReader br = new BufferedReader(new InputStreamReader(hc.getInputStream(), "UTF-8"));
-			inputLine = br.readLine();
-			br.close();
 
 		}catch(MalformedURLException murle){
 			System.out.println("MalformedURLException - This shouldn't happen as the URL's are embedded");
